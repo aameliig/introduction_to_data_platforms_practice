@@ -84,8 +84,9 @@ ENV HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 Наш файл целиком приложен в этой папке, поясним некоторые его строчки:
 
 ```
-# создаем каталог для namenode - там хранятся данные
 FROM hadoop-base
+
+# создаем каталог для namenode - там хранятся данные
 
 ENV HDFS_CONF_dfs_namenode_name_dir=file:///hadoop/dfs/name
 
