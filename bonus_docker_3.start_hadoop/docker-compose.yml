@@ -1,0 +1,69 @@
+services:
+  namenode:
+    image: hadoop-namenode
+    container_name: namenode
+    hostname: namenode
+    #restart: always
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./config/namenode/core-site.xml:/opt/hadoop-3.3.6/etc/hadoop/core-site.xml 
+      - ./config/namenode/hdfs-site.xml:/opt/hadoop-3.3.6/etc/hadoop/hdfs-site.xml 
+      - ./config/namenode/yarn-site.xml:/opt/hadoop-3.3.6/etc/hadoop/yarn-site.xml 
+      - ./config/namenode/mapred-site.xml:/opt/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+
+  datanode1:
+    image: hadoop-datanode
+    container_name: datanode1
+    hostname: datanode1
+    #restart: always
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - hadoop_data1:/hadoop/dfs/data
+      - ./config/datanode/core-site.xml:/opt/hadoop-3.3.6/etc/hadoop/core-site.xml 
+      - ./config/datanode/hdfs-site.xml:/opt/hadoop-3.3.6/etc/hadoop/hdfs-site.xml 
+      - ./config/datanode/yarn-site.xml:/opt/hadoop-3.3.6/etc/hadoop/yarn-site.xml 
+      - ./config/datanode/mapred-site.xml:/opt/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+ 
+  datanode2:
+    image: hadoop-datanode
+    container_name: datanode2
+    hostname: datanode2
+    #restart: always
+    #command: echo "disabled"
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - hadoop_data2:/hadoop/dfs/data
+      - ./config/datanode/core-site.xml:/opt/hadoop-3.3.6/etc/hadoop/core-site.xml 
+      - ./config/datanode/hdfs-site.xml:/opt/hadoop-3.3.6/etc/hadoop/hdfs-site.xml 
+      - ./config/datanode/yarn-site.xml:/opt/hadoop-3.3.6/etc/hadoop/yarn-site.xml 
+      - ./config/datanode/mapred-site.xml:/opt/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+
+  datanode3:
+    image: hadoop-datanode
+    container_name: datanode3
+    hostname: datanode3
+    #command: echo "disabled"
+    #restart: always
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - hadoop_data3:/hadoop/dfs/data
+      - ./config/datanode/core-site.xml:/opt/hadoop-3.3.6/etc/hadoop/core-site.xml 
+      - ./config/datanode/hdfs-site.xml:/opt/hadoop-3.3.6/etc/hadoop/hdfs-site.xml 
+      - ./config/datanode/yarn-site.xml:/opt/hadoop-3.3.6/etc/hadoop/yarn-site.xml 
+      - ./config/datanode/mapred-site.xml:/opt/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+ 
+volumes:
+  hadoop_namenode:
+  hadoop_data1:
+  hadoop_data2:
+  hadoop_data3:
+
