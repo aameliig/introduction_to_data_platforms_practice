@@ -48,12 +48,18 @@ ssh team@<IP-адрес>
 Взаимодействие с другими узлами будет происходить через нее.
 
 ## 2. Создаем пользователя hadoop
-Создаем нового пользователя для работы с Hadoop и придумываем ему надежный пароль:
+Создаем нового пользователя для работы с Hadoop (без прав sudo) и придумываем ему надежный пароль:
 
 ```
 sudo adduser hadoop
 ```
 [скрин с паролем]
+
+Переключаемся в пользователя hadoop:
+
+```
+su hadoop
+```
 
 ## 3. Генерируем SSH-ключи
 Для доступа без пароля создаём SSH-ключи:
@@ -61,7 +67,7 @@ sudo adduser hadoop
 ```
 ssh-keygen -t rsa -P ""
 ```
-
+Скопируем публичный ключ id_rsa.pub
 Затем добавляем ключ в авторизованные:
 
 ```
@@ -86,16 +92,34 @@ sudo nano /etc/hosts
 ```
 
 !!!!!!
-## 5. Повторяем шаги на всех нодах
-Повторяем предыдущие шаги (создание пользователя, генерация ключей, настройка хостов) на всех остальных нодах.
+## 5. Повторяем шаги 2, 4 на всех узлах
+Повторяем предыдущие шаги (создание пользователя,  ключей, настройка хостов) на всех остальных нодах.
 Подключаемся через jump node
+
+```
+eam@team-1-nn:~$ sudo nano /etc/hosts
+team@team-1-nn:~$ su hadoop
+Password: 
+hadoop@team-1-nn:/home/team$ cd ~
+hadoop@team-1-nn:~$ cd .ssh
+bash: cd: .ssh: No such file or directory
+hadoop@team-1-nn:~$ mkdir .ssh
+hadoop@team-1-nn:~$ cd .ssh
+hadoop@team-1-nn:~/.ssh$ nano master.pub
+hadoop@team-1-nn:~/.ssh$ cat ~/.ssh/master.pub >> ~/.ssh/authorized_keys
+hadoop@team-1-nn:~/.ssh$ 
+
+```
+hadoop@team-1-dn-01:~/.ssh$ nano master.pub
+hadoop@team-1-dn-01:~/.ssh$ cat ~/.ssh/master.pub >> ~/.ssh/authorized_keys
+
 
 ## 6. Устанавливаем Hadoop на джамп-ноду
 Скачиваем Hadoop и устанавливаем его на джамп-ноду:
 
 ```
-wget https://downloads.apache.org/hadoop/common/hadoop-3.3.0/hadoop-3.3.0.tar.gz
-tar -xzvf hadoop-3.3.0.tar.gz
+wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
+tar -xzvf hadoop-3.4.0.tar.gz
 ```
 
 ## 7. Создаем файл с ключами
