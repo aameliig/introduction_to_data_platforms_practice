@@ -57,29 +57,11 @@ ssh team@<IP-адрес>
 ```
 sudo adduser hadoop
 ```
-![create new user](http://url/to/img.png)
+![create new user](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/test/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png)
 
-Переключаемся в пользователя hadoop:
 
-```
-su hadoop
-```
-
-## 3. Генерируем SSH-ключи
-Для доступа без пароля создаём SSH-ключи:
-
-```
-ssh-keygen -t rsa -P ""
-```
-Скопируем публичный ключ id_rsa.pub
-Затем добавляем ключ в авторизованные:
-
-```
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-```
-
-## 4. Меняем в списке хостов пути к остальным нодам
-Редактируем файл `/etc/hosts` для добавления IP-адресов всех нод:
+## 3. Добавляем в список хостов пути к остальным нодам
+Для того, чтобы ноды знали друг про друга, редактируем файл `/etc/hosts`. Добавляем туда IP-адресов всех узлов и закомментируем лишние:
 
 ```
 sudo nano /etc/hosts
@@ -94,66 +76,78 @@ sudo nano /etc/hosts
 192.168.1.9 team-1-dn-1
 
 ```
+Эта операция доступна только для пользователя с правом sudo (не hadoop). 
 
-!!!!!!
-## 5. Повторяем шаги 2, 4 на всех узлах
-Повторяем предыдущие шаги (создание пользователя,  ключей, настройка хостов) на всех остальных нодах.
-Подключаемся через jump node
-
-```
-eam@team-1-nn:~$ sudo nano /etc/hosts
-team@team-1-nn:~$ su hadoop
-Password: 
-hadoop@team-1-nn:/home/team$ cd ~
-hadoop@team-1-nn:~$ cd .ssh
-bash: cd: .ssh: No such file or directory
-hadoop@team-1-nn:~$ mkdir .ssh
-hadoop@team-1-nn:~$ cd .ssh
-hadoop@team-1-nn:~/.ssh$ nano master.pub
-hadoop@team-1-nn:~/.ssh$ cat ~/.ssh/master.pub >> ~/.ssh/authorized_keys
-hadoop@team-1-nn:~/.ssh$ 
+## 4. Генерируем SSH-ключи
+Переключаемся в **пользователя hadoop**:
 
 ```
-hadoop@team-1-dn-01:~/.ssh$ nano master.pub
-hadoop@team-1-dn-01:~/.ssh$ cat ~/.ssh/master.pub >> ~/.ssh/authorized_keys
+su hadoop
+```
 
+Для доступа без пароля создаём SSH-ключи (важно: генерируем ключи из под **hadoop**!):
 
-## 6. Устанавливаем Hadoop на джамп-ноду
-Скачиваем Hadoop и устанавливаем его на джамп-ноду:
+```
+ssh-keygen
+```
+
+Выведем в консоль публичный ключ и **скопируем его себе в отдельный текстовый файл**:
+
+```
+cat ./ssh/id_ed255219.pub
+```
+Затем выходим из пользователя hadoop и подключаемся к другой ноде.
+
+## 5. Повторяем шаги 2 - 4 на всех узлах
+Повторяем предыдущие шаги 2 - 4 (создание пользователя, корректировка списка хостов и генерация ключей) на всех остальных нодах.
+К ним мы подключаемся через jump node
+
+## 6. Создаем файл с SSH-ключами
+Идем на Jump Node и переключаемся в пользователя hadoop. Заходим в папку ./ssh и создаем там файл authorized_keys:
+
+```
+nano authorized_keys
+```
+
+Туда мы вставляем публичные SSH-ключи от всех нод, которые мы заранее для удобства сохранили в отдельном текстовом файлике.
+
+## 7. Кладем ключи на остальные ноды
+Далее копируем ключи (этот файл) на все остальные узлы командой:
+```
+scp authorized_keys team-1-nn:/home/hadoop/.ssh/
+```
+
+После этого шага можно проверить, что подключение по SSH к другим нодам происходит успешно (то есть, от нас не требуется вводить пароль):
+```
+ssh <node_name>
+
+пример:
+ssh team-1-nn
+```
+После этой команды вы должны зайти на хост без ввода пароля.
+
+## 8. Устанавливаем Hadoop на Jump Node
+Возвращаемся на Jump Node, переключаемся в hadoop. Скачиваем Hadoop, у нас версия 3.4.0:
 
 ```
 wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
-tar -xzvf hadoop-3.4.0.tar.gz
 ```
 
-## 7. Создаем файл с ключами
-Сохраняем SSH-ключи в отдельный файл для последующей отправки:
-
-```
-ssh-keygen -t rsa -P "" -f ~/.ssh/hadoop_key
-```
-
-## 8. Раскладываем ключи на остальные ноды
-Копируем ключи на все остальные ноды:
-
-```
-ssh-copy-id -i ~/.ssh/hadoop_key.pub user@node1
-ssh-copy-id -i ~/.ssh/hadoop_key.pub user@node2
-```
-
-## 9. Копируем дистрибутив Hadoop на ноды
+## 9. Копируем дистрибутив Hadoop на все узлы
 Перемещаем архив с Hadoop на все ноды:
 
 ```
-scp hadoop-3.3.0.tar.gz user@node1:/home/hadoop/
-scp hadoop-3.3.0.tar.gz user@node2:/home/hadoop/
+scp hadoop-3.4.0.tar.gz <node_name>:/home/hadoop/
+
+пример:
+scp hadoop-3.4.0.tar.gz team-1-nn:/home/hadoop/
 ```
 
 ## 10. Распаковываем Hadoop на всех нодах
-Распаковываем архив с Hadoop на каждой ноде:
+Распаковываем архив на каждой ноде:
 
 ```
-tar -xzvf hadoop-3.3.0.tar.gz
+tar -xzvf hadoop-3.4.0.tar.gz
 ```
 
 ## 11. Переходим на нейм-нод
