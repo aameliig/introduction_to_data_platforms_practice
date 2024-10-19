@@ -153,40 +153,70 @@ ssh hadoop@node1
 ```
 
 ## 12. Проверяем версию Java и Python
-Проверяем, что установлены нужные версии Java и Python. Если их нет, устанавливаем:
-
+Проверяем, что установлены нужные версии Java и Python. Хотим видеть у себя openjdk version "11.0.24" 
+Если их нет, устанавливаем:
 ```
-sudo apt install openjdk-8-jdk python3
+sudo apt install openjdk-11-jdk python3
 ```
-
+Смотрим, где живет Java:
+```
+which java
+```
+Предыдущий путь вставляем вместо /usr/bin/java далее
+```
+readlink -f /usr/bin/java
+```
 ## 13. Создаем переменные окружения
-Настраиваем переменные окружения для Hadoop и Java, добавляем пути в `.bashrc`:
-
+Настраиваем переменные окружения для Hadoop и Java, добавляем пути в `.profile`:
 ```
-export HADOOP_HOME=/home/hadoop/hadoop-3.3.0
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-export PATH=$PATH:$HADOOP_HOME/bin
+nano ~/.profile
+```
+следующие пути:
+```
+export HADOOP_HOME=/home/hadoop/hadoop-3.4.0
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 ```
 
 Применяем изменения:
 
 ```
-source ~/.bashrc
+source ~/.profile
 ```
+И проверяем, что всё рабоает:
+```
+hadoop version
+```
+Должна вывестись версия Hadoop, пока мы находимся в домашней директории.
 
 ## 14. Копируем файл на все ноды
-Переносим файл окружения на остальные ноды:
+Переносим файл окружения на остальные ноды, кроме jump ноды:
 
 ```
-scp ~/.bashrc user@node2:/home/hadoop/
-scp ~/.bashrc user@node3:/home/hadoop/
+scp ~/.profile team-1-dn-0:/home/hadoop/
+scp ~/.profile team-1-dn-1:/home/hadoop/
+```
+
+## 14.5 Добавляем на всякий случай путь к Java в конфиг Hadoop напрямую:
+```
+cd hadoop-3.4.0/etc/hadoop/
+nano hadoop-env.sh
+```
+и добавляем строчку:
+```
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+```
+и аналогично копируем на остальные ноды, кроме jump-ноды:
+```
+scp hadoop-env.sh team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
+scp hadoop-env.sh team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
 ```
 
 ## 15. Редактируем конфигурацию core-site.xml
 Открываем и редактируем файл `core-site.xml`:
 
 ```
-nano $HADOOP_HOME/etc/hadoop/core-site.xml
+nano /home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
 ```
 
 Добавляем:
@@ -194,7 +224,7 @@ nano $HADOOP_HOME/etc/hadoop/core-site.xml
 ```
 <property>
   <name>fs.defaultFS</name>
-  <value>hdfs://node1:9000</value>
+  <value>hdfs://team-1-nn:9000</value>
 </property>
 ```
 
@@ -202,7 +232,7 @@ nano $HADOOP_HOME/etc/hadoop/core-site.xml
 Настраиваем HDFS и указываем репликацию:
 
 ```
-nano $HADOOP_HOME/etc/hadoop/hdfs-site.xml
+nano /home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
 ```
 
 Добавляем:
@@ -218,30 +248,37 @@ nano $HADOOP_HOME/etc/hadoop/hdfs-site.xml
 Добавляем ноды в файл `workers`:
 
 ```
-nano $HADOOP_HOME/etc/hadoop/workers
+nano /home/hadoop/hadoop-3.4.0/etc/hadoop/workers
 ```
 
 Пример:
 
 ```
-node1
-node2
-node3
+team-1-nn
+team-1-dn-0
+team-1-dn-1
 ```
 
 ## 18. Копируем конфиги на все ноды
 Переносим конфиги на другие ноды:
 
 ```
-scp $HADOOP_HOME/etc/hadoop/* user@node2:/home/hadoop/hadoop-3.3.0/etc/hadoop/
+scp core-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
+scp core-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
+
+scp hdfs-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
+scp hdfs-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
+
+scp workers team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/workers
+scp workers team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/workers
 ```
 
 ## 19. Запускаем HDFS
 Форматируем файловую систему и запускаем HDFS:
-
+из hadoop-3.4.0 запускаем
 ```
-$HADOOP_HOME/bin/hdfs namenode -format
-$HADOOP_HOME/sbin/start-dfs.sh
+bin/hdfs namenode -format
+sbin/start-dfs.sh
 ```
 
 ## 20. Переходим на джамп-ноду
