@@ -289,22 +289,25 @@ ssh hadoop@jumpnode
 ```
 
 ## 21. Меняем конфиг nginx
+Переходим обратно в пользователя team
 Редактируем конфигурацию nginx:
 
 ```
-nano /etc/nginx/nginx.conf
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/nn
+sudo nano /etc/nginx/sites-available/nn
 ```
 
 Добавляем правила для перенаправления трафика на NameNode:
 
 ```
 server {
-  listen 80;
+  listen 9870;
   location / {
-    proxy_pass http://node1:9870;
+    proxy_pass http://team-1-nn:9870;
   }
 }
 ```
+sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
 
 ## 22. Перезагружаем nginx
 Применяем изменения:
@@ -315,6 +318,12 @@ sudo systemctl restart nginx
 
 ## 23. Проверяем доступность через браузер
 Переходим в браузере по адресу джамп-ноды и проверяем доступность Hadoop NameNode.
+http://176.109.91.3:9870
+Смотрим, что все работает и все три ноды живые
+![image](https://github.com/user-attachments/assets/f6715df3-b66a-453a-bb9d-411ecce2dc48)
+![image](https://github.com/user-attachments/assets/f33a03cb-6a3d-41ac-9e1d-e47df4aa1141)
+
+
 
 ## 24. Заходим на нейм-ноду
 Подключаемся обратно на NameNode:
