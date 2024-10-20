@@ -326,64 +326,109 @@ http://176.109.91.3:9870
 
 
 ## 24. Заходим на нейм-ноду
+Переходим в пользователя hadoop:
+sudo -i -u hadoop
 Подключаемся обратно на NameNode:
 
 ```
-ssh hadoop@node1
+ssh team-1-nn
 ```
 
 ## 25. Настраиваем конфиги YARN
+
+cd hadoop-3.4.0/etc/hadoop
+
 Открываем и редактируем `yarn-site.xml` и `mapred-site.xml`:
 
-```
-nano $HADOOP_HOME/etc/hadoop/yarn-site.xml
-```
-
-Пример настройки:
+nano yarn-site.xml
 
 ```
 <property>
-  <name>yarn.resourcemanager.hostname</name>
-  <value>node1</value>
-</property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+<value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_HOME,PATH,LANG,TZ,HADOOP_MAPRED_HOME</value>    </property>
+
+```
+
+nano mapred-site.xml
+
+```
+<configuration>
+   <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+   </property>
+   <property>
+        <name>mapreduce.application.classpath</name>
+        <value>$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*</value>
+   </property>
+</configuration>
 ```
 
 ## 26. Копируем конфиги на остальные ноды
 Переносим конфиги YARN на другие ноды:
 
 ```
-scp $HADOOP_HOME/etc/hadoop/* user@node2:/home/hadoop/hadoop-3.3.0/etc/hadoop/
+scp mapred-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp mapred-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp yarn-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
+scp yarn-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
 ```
 
 ## 27. Запускаем YARN
+cd ../../
 Запускаем сервисы YARN:
 
 ```
-$HADOOP_HOME/sbin/start-yarn.sh
+sbin/start-yarn.sh
 ```
 
 ## 28. Запускаем History Server
 Запускаем сервер истории:
 
 ```
-$HADOOP_HOME/bin/mapred --daemon start historyserver
+mapred --daemon start historyserver
 ```
 
 ## 29. Редактируем конфиги для веб-интерфейсов
 Настраиваем порты для веб-интерфейсов YARN и History Server:
 
-```
-nano $HADOOP_HOME/etc/hadoop/yarn-site.xml
-```
-
-Пример:
+Выходим из nn на jn, и переходим в пользователя team
 
 ```
-<property>
-  <name>yarn.resourcemanager.webapp.address</name>
-  <value>node1:8088</value>
-</property>
+exit
+su team
 ```
+Редактируем конфиг
+```
+sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/ya
+sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/dh
+
+sudo nano /etc/nginx/sites-available/ya
+```
+server {
+  listen 8088;
+  location / {
+    proxy_pass http://team-1-nn:8088;
+  }
+}
+
+sudo nano /etc/nginx/sites-available/dh
+
+server {
+  listen 19888;
+  location / {
+    proxy_pass http://team-1-nn:19888;
+  }
+}
+
+Включаем хосты:
+sudo ln -s /etc/nginx/sitest-available/ya /etc/nginx/sites-enabled/ya
+sudo ln -s /etc/nginx/sitest-available/dh /etc/nginx/sites-enabled/dh
+
 
 ## 30. Перезапускаем nginx
 Перезагружаем nginx после изменения конфигурации:
@@ -392,13 +437,3 @@ nano $HADOOP_HOME/etc/hadoop/yarn-site.xml
 sudo systemctl restart nginx
 ```
 
-## 31. Останавливаем сервисы
-Для завершения, останавливаем все сервисы:
-
-```
-$HADOOP_HOME/sbin/stop-yarn.sh
-$HADOOP_HOME/sbin/stop-dfs.sh
-$HADOOP_HOME/bin/mapred --daemon stop historyserver
-```
-
-Теперь кластер настроен и готов к работе!
