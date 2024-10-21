@@ -283,6 +283,7 @@ sudo systemctl restart nginx
 ```
 
 ## 23. Проверяем доступность через браузер
+
 Переходим в браузере по адресу джамп-ноды и проверяем доступность Hadoop NameNode.
 
 http://176.109.91.3:9870
@@ -432,4 +433,4 @@ sudo systemctl restart nginx
 
 Мы можем увидеть веб-интерфейс history server
 
-![history server](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/test/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png)
+![history server]([https://github.com/aameliig/introduction_to_data_platforms_practice/blob/test/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/nginx.png))
