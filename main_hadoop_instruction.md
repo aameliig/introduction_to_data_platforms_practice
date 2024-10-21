@@ -153,8 +153,8 @@ hadoop version
 ```
 Должна вывестись версия Hadoop, пока мы находимся в домашней директории.
 
-## 14. Копируем файл на все ноды
-Переносим файл окружения на остальные ноды, кроме jump ноды:
+## 14. Копируем файл на data node
+Переносим файл окружения на остальные дата ноды:
 
 ```
 scp ~/.profile team-1-dn-0:/home/hadoop/
@@ -170,7 +170,7 @@ nano hadoop-env.sh
 ```
 JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ```
-и аналогично копируем на остальные ноды, кроме jump-ноды:
+и аналогично копируем на остальные дата ноды:
 ```
 scp hadoop-env.sh team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
 scp hadoop-env.sh team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
@@ -224,7 +224,7 @@ team-1-dn-1
 ```
 
 ## 18. Копируем конфиги на все ноды
-Переносим конфиги на другие ноды:
+Переносим конфиги на другие дата ноды:
 
 ```
 scp core-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
@@ -246,15 +246,14 @@ sbin/start-dfs.sh
 ```
 
 ## 20. Переходим на джамп-ноду
-Подключаемся к джамп-ноду для настройки nginx:
+Подключаемся к джамп-ноде для настройки nginx:
 
 ```
 ssh hadoop@jumpnode
 ```
 
 ## 21. Меняем конфиг nginx
-Переходим обратно в пользователя team
-Редактируем конфигурацию nginx:
+Переходим обратно в пользователя team. Редактируем конфигурацию nginx:
 
 ```
 sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/nn
@@ -304,6 +303,7 @@ http://176.109.91.3:9870
 
 ## 24. Заходим на нейм-ноду
 Переходим в пользователя hadoop:
+
 ```
 sudo -i -u hadoop
 ```
@@ -318,6 +318,7 @@ ssh team-1-nn
 ```
 cd hadoop-3.4.0/etc/hadoop
 ```
+
 Открываем и редактируем `yarn-site.xml` и `mapred-site.xml`:
 
 ```
@@ -336,6 +337,7 @@ nano yarn-site.xml
 ```
 
 Далее:
+
 ```
 nano mapred-site.xml
 ```
@@ -434,3 +436,6 @@ sudo systemctl restart nginx
 Мы можем увидеть веб-интерфейс history server
 
 ![history server]([https://github.com/aameliig/introduction_to_data_platforms_practice/blob/test/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/nginx.png))
+
+
+**Настройка завершена**
