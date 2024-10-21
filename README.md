@@ -260,7 +260,7 @@ team-1-dn-1
 ```
 
 ## 18. Копируем конфиги на все ноды
-Переносим конфиги на другие ноды:
+Переносим конфиги на другие ноды, кроме jump-ноды::
 
 ```
 scp core-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
