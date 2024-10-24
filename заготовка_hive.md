@@ -21,7 +21,7 @@
 Следуя этому пошаговому руководству, вы сможете развернуть свой развернуть **Hive** в конфигурации пригодной для производственной эксплуатации (с отдельным хранилищем метаданных), а также трансформировать загруженные данные в таблицу Hive и преобразовать полученную таблицу в партиционированную.
 
 ## 1. Установим postgresql
-Для начала переключимся в Name Node и установим postgresql. С его помощью будет организовано хранение данных в metastore
+Для начала переключимся в Name Node и установим postgresql. С его помощью будет организовано хранилище метаданных
 
 ```
 ssh team-1-nn
@@ -40,54 +40,85 @@ sudo -i -u postgres
 ```
 CREATE DATABASE metastore;
 ```
-CREATE USER hive with password 'passwords';
-даем права + владелец
+Далее создаем нового пользователя hive и даем ему права доступа. Но этого не достаточно: нужно также назначить его владельцем БД.
+```
+CREATE USER hive with password '<your_password>';
 
 GRANT ALL PRIVILEGES ON DATABASE "metastore" TO hive;
 
 ALTER DATABASE metastore OWNER TO hive;
+```
 
-выходим в пользователя тим на нейм ноде 
-нужно подправить конфиг
-
+## 3. Редактируем конфигурационные файлы
+Выходим в пользователя team на name node; открываем конфигурационные файлы и правим следующие строки:
+```
 sudo nano /etc/postgresql/16/main/postgresql.conf
-
+```
+```
 listen_addresses = 'team-1-nn'
-
-второй конфиг
+```
+Второй конфиг:
+```
 sudo nano /etc/postgresql/16/main/pg_hba.conf
-
+```
+```
 host    metastore       hive            192.168.1.6/32          password 
-                                          adress jump node       способ авторизации
 
-restart 
+        # наша бд       #пользователь   # адрес jump node      #способ авторизации
+```
+
+## 4. Рестартуем postgresql, чтобы применить изменения
+```
 sudo systemctl restart postgresql
+```
 
-check
-sudo systemctl status postgresql
+Можно проверить себя командой `sudo systemctl status postgresql`
 
-возвращаемся на джамп ноду, устан клиент пскл
-
+## 5. Установим клиент postgresql на jump node
+Возвращаемся на jump node, установим клиент postgresql
+```
 sudo apt install postgresql-client-16
+```
 
-пробуем подключиться к метасторе теперь: работает!
-
+Можно проверить себя: пробуем подключиться к metastore - работает!
+```
 psql -h team-1-nn -p 5432 -U hive -W -d metastore
+```
 
-секач хайв распаковываем
-cd apache-hive-4.0.1-bin/
-
-нужен драйвер для постгрес
-cd libs
-wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
-
-исправляем конфиги
-cd ../conf
-создадим конфиг сами
-nano hive-site.xml
+## 6. Скачиваем диструбитив Hive
+Для начала переключимся в пользователя hadoop:
 
 ```
-  GNU nano 7.2                            hive-site.xml *                                    
+su hadoop
+```
+
+Скачиваем Hive (version = 4.0.1):
+
+```
+wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
+```
+
+## 7. Распаковываем архив
+```
+tar -zxvf apache-hive-4.0.1-bin.tar.gz
+cd apache-hive-4.0.1-bin/
+```
+
+## 8. Скачиваем драйвер для postgresql
+```
+cd libs
+wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+```
+
+## 9. Конфигурирование
+Создадим свой конфигурационный файл
+```
+cd ../conf
+nano hive-site.xml
+```
+
+**Содержимое hive-site.xml**
+```                                  
 <configuration>
   <property>
     <name>hive.server2.authentication</name>
@@ -115,23 +146,31 @@ nano hive-site.xml
   </property>
   <property>    
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>password</value>
+    <value>your_password</value>
   </property>   
 </configuration>
 ```
 
-переменные окружения
+## 10. Добавим переменные окружения
+```
 nano ~/.profile
-
+```
+Вставляем в конец:
+```
 export HIVE_HOME="/home/hadoop/apache-hive-4.0.1-bin"
 export HIVE_CONF_DIR=$HIVE_HOME/conf
 export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
 export PATH="$PATH:$HIVE_HOME/bin" 
+```
 
-активируем окружение
+## 11. Активируем окружение
+```
 source ~/.profile
+```
 
-sanity check:    hive --version
+Можно проверить себя командой `hive --version`
+
+----------------------------------
 
 создаем папки 
 убедиться что нет
@@ -141,110 +180,6 @@ sanity check:    hive --version
 нужна только одна +1 папка
 
 
-
-## 1. Скачиваем диструбитив
-Для начала переключимся в пользователя hadoop и перейдем в нужную папку:
-
-```
-su hadoop
-cd hadoop-3.4.0/
-```
-
-Скачиваем Hive (version = 4.0.1):
-
-```
-wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
-```
-
-## 2. Распаковываем архив
-
-```
-tar -zxvf apache-hive-4.0.1-bin.tar.gz
-```
-
-```
-cd apache-hive-4.0.1-bin/
-```
-
-## 3. Задаем переменную окружения
-Задаем переменную окружения, чтобы hive "знал", где располагаются файлы его дистрибутива:
-
-```
-export HIVE_HOME=/home/hadoop/hadoop-3.4.0/apache-hive-4.0.1-bin
-```
-
-## 4. Добавим в переменную окружения путь к исполняемым файлам
-
-```
-export PATH=$PATH:$HIVE_HOME/bin
-```
-
-Переходим к **Конфигурированию**
-
-## 5. Создаем папки для файлов
-Идем на Name Node и переключаемся в пользователя hadoop.
-
-Создаем папку для временных файлов на hdfs (сначала убеждаемся, что ее не существует)
-```
-
-```
-
-Cоздаем папку, чтобы файлы, которыми управляет hive размещались на hdfs
-
-```
-
-```
-
-## 6. Создаем файл с SSH-ключами
-Идем на Jump Node и переключаемся в пользователя hadoop. Заходим в папку ./ssh и создаем там файл authorized_keys:
-
-```
-nano authorized_keys
-```
-
-Туда мы вставляем публичные SSH-ключи от всех нод, которые мы заранее для удобства сохранили в отдельном текстовом файлике.
-
-## 7. Копируем ключи на остальные ноды
-Копируем публичные ключи (файл authorized_keys) на все остальные узлы командой:
-```
-scp authorized_keys team-1-nn:/home/hadoop/.ssh/
-```
-
-После этого шага можно проверить, что подключение по SSH к другим нодам происходит успешно:
-```
-ssh <node_name>
-
-пример:
-ssh team-1-nn
-```
-После этой команды вы должны зайти на хост без ввода пароля.
-
-## 8. Устанавливаем Hadoop на Jump Node
-Возвращаемся на Jump Node, переключаемся в hadoop. Скачиваем Hadoop, у нас версия 3.4.0:
-
-```
-wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
-```
-
-## 9. Копируем дистрибутив Hadoop на все узлы
-```
-scp hadoop-3.4.0.tar.gz <node_name>:/home/hadoop/
-
-пример:
-scp hadoop-3.4.0.tar.gz team-1-nn:/home/hadoop/
-```
-
-## 10. Распаковываем архив Hadoop на каждой ноде
-```
-tar -xzvf hadoop-3.4.0.tar.gz
-```
-
-## 11. Переходим на нейм-нод
-Подключаемся к NameNode:
-
-```
-ssh hadoop@node1
-```
 
 ## 12. Проверяем версию Java и Python
 Проверяем, что установлены нужные версии Java и Python. Хотим видеть у себя openjdk version "11.0.24" 
