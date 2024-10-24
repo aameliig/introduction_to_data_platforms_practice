@@ -34,19 +34,112 @@ sudo apt install postgresql
 sudo -i -u postgres
 ```
 
-## 2. Скачиваем диструбитив
-Для начала переключимся в пользователя hadoop и перейдем в нужную папку:
+## 2. Создаем базу для метаданных
+Откроем консоль postgresql командой `psql`
 
 ```
-su hadoop
-cd hadoop-3.4.0/
+CREATE DATABASE metastore;
+```
+CREATE USER hive with password 'passwords';
+даем права + владелец
+
+GRANT ALL PRIVILEGES ON DATABASE "metastore" TO hive;
+
+ALTER DATABASE metastore OWNER TO hive;
+
+выходим в пользователя тим на нейм ноде 
+нужно подправить конфиг
+
+sudo nano /etc/postgresql/16/main/postgresql.conf
+
+listen_addresses = 'team-1-nn'
+
+второй конфиг
+sudo nano /etc/postgresql/16/main/pg_hba.conf
+
+host    metastore       hive            192.168.1.6/32          password 
+                                          adress jump node       способ авторизации
+
+restart 
+sudo systemctl restart postgresql
+
+check
+sudo systemctl status postgresql
+
+возвращаемся на джамп ноду, устан клиент пскл
+
+sudo apt install postgresql-client-16
+
+пробуем подключиться к метасторе теперь: работает!
+
+psql -h team-1-nn -p 5432 -U hive -W -d metastore
+
+секач хайв распаковываем
+cd apache-hive-4.0.1-bin/
+
+нужен драйвер для постгрес
+cd libs
+wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+
+исправляем конфиги
+cd ../conf
+создадим конфиг сами
+nano hive-site.xml
+
+```
+  GNU nano 7.2                            hive-site.xml *                                    
+<configuration>
+  <property>
+    <name>hive.server2.authentication</name>
+    <value>NONE</value>
+  </property>
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>/user/hive/warehouse</value>
+  </property>
+  <property>    
+    <name>hive.server2.thrift.port</name>
+    <value>5433</value>
+  </property>
+  <property>    
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:postgresql://team-1-nn:5432/metastore</value>
+  </property>
+  <property>    
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.postgresql.Driver</value>
+  </property>
+  <property>    
+    <name>javax.jdo.option.ConnectionUserName</name>
+    <value>hive</value>
+  </property>
+  <property>    
+    <name>javax.jdo.option.ConnectionPassword</name>
+    <value>password</value>
+  </property>   
+</configuration>
 ```
 
-Скачиваем Hive (version = 4.0.1):
+переменные окружения
+nano ~/.profile
 
-```
-wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
-```
+export HIVE_HOME="/home/hadoop/apache-hive-4.0.1-bin"
+export HIVE_CONF_DIR=$HIVE_HOME/conf
+export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
+export PATH="$PATH:$HIVE_HOME/bin" 
+
+активируем окружение
+source ~/.profile
+
+sanity check:    hive --version
+
+создаем папки 
+убедиться что нет
+идем в браузер
+
+у нас есть тмп
+нужна только одна +1 папка
+
 
 
 ## 1. Скачиваем диструбитив
