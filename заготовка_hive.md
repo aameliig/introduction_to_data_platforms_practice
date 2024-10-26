@@ -170,31 +170,33 @@ source ~/.profile
 
 Можно проверить себя командой `hive --version`
 
-----------------------------------
+## 12. Cоздаем папки
+Для хранения данных нам понадобятся папки tmp и warehouse. Cоздадим их командами:
+```
+hdfs dfs -mkdir -p /tmp
+hdfs dfs-mkdir -p /user/hive/warehouse
+```
+**Совет:** для начала убедитесь, что этих папок не существует. Это можно сделать в веб-интерфейсе, вкладка 
+`Utilities / Browse the file system`
 
-создаем папки 
-убедиться что нет
-идем в браузер
+В нашем случае папка tmp уже существовала, мы добавили только warehouse.
 
-у нас есть тмп
-нужна только одна +1 папка
+Меняем права доступа:
+```
+hdfs dfs -chmod g+w  /tmp
+hdfs dfs -chmod g+w  /user/hive/warehouse
+```
 
+Вид веб-интерфейса:
+![image](https://github.com/user-attachments/assets/f6715df3-b66a-453a-bb9d-411ecce2dc48)
 
-
-## 12. Проверяем версию Java и Python
-Проверяем, что установлены нужные версии Java и Python. Хотим видеть у себя openjdk version "11.0.24" 
-Если их нет, устанавливаем:
+## 12. Инициализируем БД
+Перед запуском осталось:
 ```
-sudo apt install openjdk-11-jdk python3
+cd ../
+./schematool -dbType postgres -initSchema
 ```
-Смотрим, где живет Java:
-```
-which java
-```
-Предыдущий путь вставляем вместо /usr/bin/java далее
-```
-readlink -f /usr/bin/java
-```
+--------------------
 ## 13. Создаем переменные окружения
 Настраиваем переменные окружения для Hadoop и Java, добавляем пути в `.profile`:
 ```
