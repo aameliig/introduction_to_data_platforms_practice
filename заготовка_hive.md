@@ -15,7 +15,6 @@
 Приятного просмотра!
 
 
-
 # Подробная инструкция по настройке Hive
 
 Следуя этому пошаговому руководству, вы сможете развернуть свой развернуть **Hive** в конфигурации пригодной для производственной эксплуатации (с отдельным хранилищем метаданных), а также трансформировать загруженные данные в таблицу Hive и преобразовать полученную таблицу в партиционированную.
@@ -118,38 +117,9 @@ nano hive-site.xml
 ```
 
 **Содержимое hive-site.xml**
-```                                  
-<configuration>
-  <property>
-    <name>hive.server2.authentication</name>
-    <value>NONE</value>
-  </property>
-  <property>
-    <name>hive.metastore.warehouse.dir</name>
-    <value>/user/hive/warehouse</value>
-  </property>
-  <property>    
-    <name>hive.server2.thrift.port</name>
-    <value>5433</value>
-  </property>
-  <property>    
-    <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:postgresql://team-1-nn:5432/metastore</value>
-  </property>
-  <property>    
-    <name>javax.jdo.option.ConnectionDriverName</name>
-    <value>org.postgresql.Driver</value>
-  </property>
-  <property>    
-    <name>javax.jdo.option.ConnectionUserName</name>
-    <value>hive</value>
-  </property>
-  <property>    
-    <name>javax.jdo.option.ConnectionPassword</name>
-    <value>your_password</value>
-  </property>   
-</configuration>
-```
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-17-15.png)
+
 
 ## 10. Добавим переменные окружения
 ```
@@ -188,60 +158,56 @@ hdfs dfs -chmod g+w  /user/hive/warehouse
 ```
 
 Вид веб-интерфейса:
-![image](https://github.com/user-attachments/assets/f6715df3-b66a-453a-bb9d-411ecce2dc48)
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241026_141316.png)
 
 ## 12. Инициализируем БД
-Перед запуском осталось:
+Перед запуском осталось инициализировать БД:
 ```
 cd ../
 ./schematool -dbType postgres -initSchema
 ```
---------------------
-## 13. Создаем переменные окружения
-Настраиваем переменные окружения для Hadoop и Java, добавляем пути в `.profile`:
+
+## 13. Запускаем Hive
 ```
-nano ~/.profile
-```
-следующие пути:
-```
-export HADOOP_HOME=/home/hadoop/hadoop-3.4.0
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+nohup hive --hiveconf hive.server2.enable.doAs=false --hiveconf hive.security.authorization.enabled=false --service hiveserver2 1>> /tmp/hs2.log 2>> /tmp/hs2.log &
 ```
 
-Применяем изменения:
-
+Подключиться в консоль Hive можно командой:
 ```
-source ~/.profile
-```
-И проверяем, что всё рабоает:
-```
-hadoop version
-```
-Должна вывестись версия Hadoop, пока мы находимся в домашней директории.
-
-## 14. Копируем файл на все ноды
-Переносим файл окружения на остальные ноды, кроме jump ноды:
-
-```
-scp ~/.profile team-1-dn-0:/home/hadoop/
-scp ~/.profile team-1-dn-1:/home/hadoop/
+beeline -u jdbc:hive2://team-1-jn:5432
 ```
 
-## 14.5 Добавляем на всякий случай путь к Java в конфиг Hadoop напрямую:
+## 14. Проверка: DB test
+Чтобы убедиться, что все работает корректно создадим DATABASE test.
+
 ```
-cd hadoop-3.4.0/etc/hadoop/
-nano hadoop-env.sh
+SHOW DATABASES;
 ```
-и добавляем строчку:
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-12-12.png)
+
 ```
-JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+CREATE DATABASE test;
+DESCRIBE DATABASE test;
 ```
-и аналогично копируем на остальные ноды, кроме jump-ноды:
-```
-scp hadoop-env.sh team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
-scp hadoop-env.sh team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/hadoop-env.sh
-```
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-12-43.png)
+
+БД появилась в веб-интерфейсе:
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/photo_2024-10-28_08-19-20.jpg)
+
+
+## 14.5 Посмотрим веб-интерфейс Hive
+Подключиться к нему можно по ссылке: http://176.109.91.3:10002
+
+![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/photo_2024-10-28_08-19-08.jpg)
+
+
+## Настройка Hive завершена. Переходим к операциям с данными
+
+------------------------------------
 
 ## 15. Редактируем конфигурацию core-site.xml
 Открываем и редактируем файл `core-site.xml`:
@@ -467,4 +433,5 @@ sudo ln -s /etc/nginx/sitest-available/dh /etc/nginx/sites-enabled/dh
 ```
 sudo systemctl restart nginx
 ```
+
 
