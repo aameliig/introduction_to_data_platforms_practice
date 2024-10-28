@@ -20,7 +20,7 @@ ssh username@<IP-адрес>
 ```
 sudo adduser hadoop
 ```
-![create new user](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/test/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png)
+![create new user](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241011_152536-1.png)
 
 
 ## 3. Добавляем в список хостов адреса остальных нод
@@ -293,6 +293,7 @@ http://176.109.91.3:9870
 ![image](https://github.com/user-attachments/assets/f33a03cb-6a3d-41ac-9e1d-e47df4aa1141)
 
 **Краткий обзор веб-интерфейса:**
+
 Из основных параметров мы можем видеть:
 - статус кластера (active)
 - время запуска
@@ -426,6 +427,8 @@ sudo ln -s /etc/nginx/sites-available/ya /etc/nginx/sites-enabled/ya
 sudo ln -s /etc/nginx/sites-available/dh /etc/nginx/sites-enabled/dh
 ```
 
+
+
 ## 30. Перезапускаем nginx
 Перезагружаем nginx после изменения конфигурации:
 
@@ -435,7 +438,7 @@ sudo systemctl restart nginx
 
 Мы можем увидеть веб-интерфейс job history
 
-![history server](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/nginx.png)
+![history server](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/nginx.png)
 
 
 **Настройка завершена**
