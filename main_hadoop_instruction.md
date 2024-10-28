@@ -436,9 +436,24 @@ sudo ln -s /etc/nginx/sites-available/dh /etc/nginx/sites-enabled/dh
 sudo systemctl restart nginx
 ```
 
-Мы можем увидеть веб-интерфейс job history
+## 31. Обзор веб-интерфейсов
+Clusrers: http://176.109.91.3:8088/cluster
 
-![history server](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/nginx.png)
+![img](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/y.png)
 
 
-**Настройка завершена**
+
+Job history: http://176.109.91.3:19888/jobhistory
+
+![img](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/nginx.png)
+
+
+
+Datanode Information: http://176.109.91.3:9870/dfshealth.html#tab-datanode
+
+![img](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task1-2_hadoop_set_up_guide/pictures/dn.png)
+
+
+
+## Настройка завершена
+-------------------------------------
