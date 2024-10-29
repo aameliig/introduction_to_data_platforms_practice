@@ -291,5 +291,38 @@ DESCRIBE DATABASE test;
     SELECT * FROM test.numbers LIMIT 10;
     ```
     - Выполняет запрос для получения первых 10 записей из таблицы `numbers`, позволяя проверить, что данные были успешно загружены.
+13. **Работа с партициями**
+    
+По порядку: 
+Создать новую партиционированную таблицу:
 
+  ```sql
+CREATE TABLE IF NOT EXISTS test.numbers_partitioned (
+    num2 STRING,
+    num3 STRING,
+    num4 STRING
+)
+PARTITIONED BY (num1 STRING)  -- Указать столбец для партиционирования
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY ',';
+  ```
+Перенести данные из старой таблицы в новую таблицу:
+  ```sql
 
+INSERT INTO TABLE test.numbers_partitioned PARTITION (num1)
+SELECT num1, num2, num3, num4 FROM test.numbers;
+  ```
+Проверить наличие партиций:
+
+  ```sql
+SHOW PARTITIONS test.numbers_partitioned;
+  ```
+Удалить старую таблицу (по желанию):
+  ```sql
+
+DROP TABLE test.numbers;
+ ```
+Переименовать новую таблицу (по желанию):
+  ```sql
+ALTER TABLE test.numbers_partitioned RENAME TO test.numbers;
+ ```
