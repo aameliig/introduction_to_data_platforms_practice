@@ -209,229 +209,87 @@ DESCRIBE DATABASE test;
 
 ------------------------------------
 
-## 15. Редактируем конфигурацию core-site.xml
-Открываем и редактируем файл `core-site.xml`:
-
-```
-nano /home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
-```
-
-Добавляем:
-
-```
-<property>
-  <name>fs.defaultFS</name>
-  <value>hdfs://team-1-nn:9000</value>
-</property>
-```
-
-## 16. Редактируем hdfs-site.xml
-Настраиваем HDFS и указываем репликацию:
-
-```
-nano /home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
-```
-
-Добавляем:
-
-```
-<property>
-  <name>dfs.replication</name>
-  <value>3</value>
-</property>
-```
-
-## 17. Редактируем файл workers
-Добавляем ноды в файл `workers`:
-
-```
-nano /home/hadoop/hadoop-3.4.0/etc/hadoop/workers
-```
-
-Пример:
-
-```
-team-1-nn
-team-1-dn-0
-team-1-dn-1
-```
-
-## 18. Копируем конфиги на все ноды
-Переносим конфиги на другие ноды:
-
-```
-scp core-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
-scp core-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/core-site.xml
-
-scp hdfs-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
-scp hdfs-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/hdfs-site.xml
-
-scp workers team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop/workers
-scp workers team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop/workers
-```
-
-## 19. Запускаем HDFS
-Форматируем файловую систему и запускаем HDFS:
-из hadoop-3.4.0 запускаем
-```
-bin/hdfs namenode -format
-sbin/start-dfs.sh
-```
-
-## 20. Переходим на джамп-ноду
-Подключаемся к джамп-ноду для настройки nginx:
-
-```
-ssh hadoop@jumpnode
-```
-
-## 21. Меняем конфиг nginx
-Переходим обратно в пользователя team
-Редактируем конфигурацию nginx:
-
-```
-sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/nn
-sudo nano /etc/nginx/sites-available/nn
-```
-
-Добавляем правила для перенаправления трафика на NameNode:
-
-```
-server {
-  listen 9870;
-  location / {
-    proxy_pass http://team-1-nn:9870;
-  }
-}
-```
-sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
-
-## 22. Перезагружаем nginx
-Применяем изменения:
-
-```
-sudo systemctl restart nginx
-```
-
-## 23. Проверяем доступность через браузер
-Переходим в браузере по адресу джамп-ноды и проверяем доступность Hadoop NameNode.
-http://176.109.91.3:9870
-Смотрим, что все работает и все три ноды живые
-![image](https://github.com/user-attachments/assets/f6715df3-b66a-453a-bb9d-411ecce2dc48)
-![image](https://github.com/user-attachments/assets/f33a03cb-6a3d-41ac-9e1d-e47df4aa1141)
 
 
+### Шаги работы с HDFS и Hive
 
-## 24. Заходим на нейм-ноду
-Переходим в пользователя hadoop:
-sudo -i -u hadoop
-Подключаемся обратно на NameNode:
+1. **Создание директории в HDFS**
+   ```bash
+   hdfs dfs -mkdir /input
+   ```
+   - Создает директорию `/input` в файловой системе HDFS, которая будет использоваться для хранения данных.
 
-```
-ssh team-1-nn
-```
+2. **Изменение прав доступа к директории**
+   ```bash
+   hdfs dfs -chmod g+w /input
+   ```
+   - Устанавливает права на запись для группы (`g+w`) в директории `/input`, позволяя другим пользователям в группе добавлять файлы.
 
-## 25. Настраиваем конфиги YARN
+3. **Копирование файла в HDFS**
+   ```bash
+   hdfs dfs -put ./apache-hive-4.0.1-bin/examples/files/2000_cols_data.csv /input/
+   ```
+   - Копирует файл `2000_cols_data.csv` из локальной файловой системы в директорию `/input` в HDFS.
 
-cd hadoop-3.4.0/etc/hadoop
+4. **Проверка целостности файла**
+   ```bash
+   hdfs fsck /input/2000_cols_data.csv
+   ```
+   - Выполняет проверку целостности файла `2000_cols_data.csv` в HDFS, чтобы убедиться, что файл доступен и не поврежден.
 
-Открываем и редактируем `yarn-site.xml` и `mapred-site.xml`:
+5. **Подключение к Hive через Beeline**
+   ```bash
+   beeline -u jdbc:hive2://team-1-jn:5432
+   ```
+   - Подключается к Hive через Beeline, используя JDBC URL, чтобы взаимодействовать с базой данных.
 
-nano yarn-site.xml
+6. **Просмотр доступных баз данных**
+   ```sql
+   SHOW DATABASES;
+   ```
+   - Отображает список всех баз данных в Hive, чтобы убедиться, что нужная база данных доступна.
 
-```
-<property>
-        <name>yarn.nodemanager.aux-services</name>
-        <value>mapreduce_shuffle</value>
-    </property>
-    <property>
-        <name>yarn.nodemanager.env-whitelist</name>
-<value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_HOME,PATH,LANG,TZ,HADOOP_MAPRED_HOME</value>    </property>
+7. **Выбор базы данных**
+   ```sql
+   use test;
+   ```
+   - Выбирает базу данных `test` для дальнейших операций.
 
-```
+8. **Создание таблицы**
+   ```sql
+   CREATE TABLE IF NOT EXISTS test.numbers (
+       num1 STRING,
+       num2 STRING,
+       num3 STRING,
+       num4 STRING
+   ) 
+   ROW FORMAT DELIMITED 
+   FIELDS TERMINATED BY ',';
+   ```
+   - Создает таблицу `numbers` в базе данных `test`, если она еще не существует. Таблица имеет четыре столбца, все из которых имеют тип `STRING`. Данные будут разделены запятыми.
 
-nano mapred-site.xml
+9. **Просмотр таблиц в базе данных**
+   ```sql
+   SHOW TABLES;
+   ```
+   - Отображает список всех таблиц в текущей базе данных, чтобы проверить, была ли успешно создана таблица `numbers`.
 
-```
-<configuration>
-   <property>
-        <name>mapreduce.framework.name</name>
-        <value>yarn</value>
-   </property>
-   <property>
-        <name>mapreduce.application.classpath</name>
-        <value>$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*</value>
-   </property>
-</configuration>
-```
+10. **Описание структуры таблицы**
+    ```sql
+    DESCRIBE numbers;
+    ```
+    - Показывает структуру таблицы `numbers`, включая названия столбцов и их типы данных.
 
-## 26. Копируем конфиги на остальные ноды
-Переносим конфиги YARN на другие ноды:
+11. **Загрузка данных в таблицу**
+    ```sql
+    LOAD DATA INPATH '/input/decimal64table1.csv' INTO TABLE test.numbers;
+    ```
+    - Загружает данные из файла `decimal64table1.csv`, который находится в HDFS, в таблицу `numbers`.
 
-```
-scp mapred-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
-scp mapred-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
-scp yarn-site.xml team-1-dn-0:/home/hadoop/hadoop-3.4.0/etc/hadoop
-scp yarn-site.xml team-1-dn-1:/home/hadoop/hadoop-3.4.0/etc/hadoop
-```
-
-## 27. Запускаем YARN
-cd ../../
-Запускаем сервисы YARN:
-
-```
-sbin/start-yarn.sh
-```
-
-## 28. Запускаем History Server
-Запускаем сервер истории:
-
-```
-mapred --daemon start historyserver
-```
-
-## 29. Редактируем конфиги для веб-интерфейсов
-Настраиваем порты для веб-интерфейсов YARN и History Server:
-
-Выходим из nn на jn, и переходим в пользователя team
-
-```
-exit
-su team
-```
-Редактируем конфиг
-```
-sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/ya
-sudo cp /etc/nginx/sites-available/nn /etc/nginx/sites-available/dh
-
-sudo nano /etc/nginx/sites-available/ya
-```
-server {
-  listen 8088;
-  location / {
-    proxy_pass http://team-1-nn:8088;
-  }
-}
-
-sudo nano /etc/nginx/sites-available/dh
-
-server {
-  listen 19888;
-  location / {
-    proxy_pass http://team-1-nn:19888;
-  }
-}
-
-Включаем хосты:
-sudo ln -s /etc/nginx/sitest-available/ya /etc/nginx/sites-enabled/ya
-sudo ln -s /etc/nginx/sitest-available/dh /etc/nginx/sites-enabled/dh
-
-
-## 30. Перезапускаем nginx
-Перезагружаем nginx после изменения конфигурации:
-
-```
-sudo systemctl restart nginx
-```
+12. **Запрос данных из таблицы**
+    ```sql
+    SELECT * FROM test.numbers LIMIT 10;
+    ```
+    - Выполняет запрос для получения первых 10 записей из таблицы `numbers`, позволяя проверить, что данные были успешно загружены.
 
 
