@@ -9,7 +9,7 @@
 
 В рамках учебного курса нам предоставили сервера для выполнения домашнего задания: одна Jump Node, одна Name Node, две Data Node.
 
-Мы разбили задачу на отдельные шаги, которые вы найдете в markdown-файле **hive_instruction.md**.
+Мы разбили задачу на отдельные шаги, которые вы найдете в markdown-файле [**hive_instruction.md**](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/hive_instruction.md).
 
 
 Приятного просмотра!
