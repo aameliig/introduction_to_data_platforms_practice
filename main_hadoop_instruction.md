@@ -260,16 +260,27 @@ sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/nn
 sudo nano /etc/nginx/sites-available/nn
 ```
 
+Добавляем авторизацию:
+```
+sudo nano /etc/nginx/.htpasswd
+```
+```
+admin:password_for_admin
+```
+
 Добавляем правила для перенаправления трафика на NameNode:
 
 ```
 server {
   listen 9870;
   location / {
+    auth_basic "Only for admin";
+    auth_basic_user_file /etc/nginx/.htpasswd;
     proxy_pass http://team-1-nn:9870;
   }
 }
 ```
+
 ```
 sudo ln -s /etc/nginx/sites-available/nn /etc/nginx/sites-enabled/nn
 ```
