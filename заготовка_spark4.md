@@ -1,101 +1,141 @@
-# Hive Installation Guide
+# Apache Spark под управлением YARN
 
-В третьем практическом домашнем задании наша цель:
+В четвертом практическом домашнем задании наши задачи:
 
-+ развернуть **Hive** в конфигурации пригодной для производственной эксплуатации (с отдельным хранилищем метаданных)
-+ трансформировать загруженные данные в таблицу Hive
-+ преобразовать полученную таблицу в партиционированную
-+ подробно описать этот процесс
++ Запустить сессию Apache Spark под управлением YARN, развернутого кластера в предыдущих заданиях
++ Подключиться к кластеру HDFS, развернутому в предыдущих заданиях
++ Используя созданную ранее сессию Spark, прочитать данные, которые были предварительно загружены на HDFS
++ Провести несколько трансформаций данных (например, агрегацию или преобразование типов)
++ Сохранить данные как таблицу
++ Убедиться, что стандартный клиент Hive может прочитать данные.
++ **Бонус для повышения оценки:** применить 5 трансформаций разных видов и сохранить данные как партиционированную таблицу.
 
-В рамках учебного курса нам предоставили сервера для выполнения домашнего задания: одна Jump Node, одна Name Node, две Data Node.
+В рамках учебного курса нам предоставили сервера для выполнения домашнего задания.
 
-Мы разбили задачу на отдельные шаги, которые вы найдете в markdown-файле **hive_instruction.md**.
+Мы разбили задачу на отдельные шаги, которые вы найдете в markdown-файле **spark_with_yarn.md**.
 
 
 Приятного просмотра!
 
 
-# Подробная инструкция по настройке Hive
+# Пример работы со Spark под управлением YARN
 
-Следуя этому пошаговому руководству, вы сможете развернуть свой развернуть **Hive** в конфигурации пригодной для производственной эксплуатации (с отдельным хранилищем метаданных), а также трансформировать загруженные данные в таблицу Hive и преобразовать полученную таблицу в партиционированную.
+В этом пошаговом руководстве описано, как запускать и корректно завершать сессию Spark, а также инструкции по выполнению базовых операций с таблицей. (Предполагается, что дистрибутив Spark уже установлен, существуют работающий кластер Hadoop и HDFS, содержащая базу данных). 
 
-## 1. Установим postgresql
-Для начала переключимся в Name Node и установим postgresql. С его помощью будет организовано хранилище метаданных
+## 0. Virtual environment
+В этом задании мы используем интерактивную оболочку ipython.
 
+Если у вас еще не установлена виртуальная среда для работы с python, то можно это сделать с помощью этого кода:
 ```
-ssh team-1-nn
-sudo apt install postgresql
-```
-
-Переключимся в **пользователя postgres**
-
-```
-sudo -i -u postgres
+sudo apt-get install python3-virtualenv
+virtualenv -p python3 ~/venv
+source venv/bin/activate
+pip3 install ipython
 ```
 
-## 2. Создаем базу для метаданных
-Откроем консоль postgresql командой `psql`
-
+В дальнейшем можно начинать работу следующим образом: заходим в виртуальную среду, затем запускаем ipython
 ```
-CREATE DATABASE metastore;
-```
-Далее создаем нового пользователя hive и даем ему права доступа. Но этого не достаточно: нужно также назначить его владельцем БД.
-```
-CREATE USER hive with password '<your_password>';
-
-GRANT ALL PRIVILEGES ON DATABASE "metastore" TO hive;
-
-ALTER DATABASE metastore OWNER TO hive;
+source venv/bin/activate
+ipython
 ```
 
-## 3. Редактируем конфигурационные файлы
-Выходим в пользователя team на name node; открываем конфигурационные файлы и правим следующие строки:
-```
-sudo nano /etc/postgresql/16/main/postgresql.conf
-```
-```
-listen_addresses = 'team-1-nn'
-```
-Второй конфиг:
-```
-sudo nano /etc/postgresql/16/main/pg_hba.conf
-```
-```
-host    metastore       hive            192.168.1.6/32          password 
+## 1. Создаем сессию Spark
+Чтобы работать со Spark из python используется пакет `pyspark`. Его можно установить командой `pip install pyspark`, но поскольку дистрибутив Spark уже включает в себя этот пакет, то его отдельная установка приведет к скачиванию всего дистрибутива Spark. 
 
-        # наша бд       #пользователь   # адрес jump node      #способ авторизации
-```
-
-## 4. Рестартуем postgresql, чтобы применить изменения
-```
-sudo systemctl restart postgresql
-```
-
-Можно проверить себя командой `sudo systemctl status postgresql`
-
-## 5. Установим клиент postgresql на jump node
-Возвращаемся на jump node, установим клиент postgresql
-```
-sudo apt install postgresql-client-16
-```
-
-Можно проверить себя: пробуем подключиться к metastore - работает!
-```
-psql -h team-1-nn -p 5432 -U hive -W -d metastore
-```
-
-## 6. Скачиваем диструбитив Hive
-Для начала переключимся в пользователя hadoop:
+Мы для наших тренировочных целей будем использовать pyspark прямо из дистрибутива Spark. Для этого выполним код:
 
 ```
-su hadoop
+import os, sys
+
+for root, dirs, files in os.walk(f"{os.environ['SPARK_HOME']}/python/lib"):
+    for file in files:
+        if "zip" in file:
+            sys.path.insert(0, os.path.join(root, file))
 ```
 
-Скачиваем Hive (version = 4.0.1):
+Далее создаем новую сессию Spark:
+```
+from pyspark.sql import SparkSession
+from onetl.connection import SparkHDFS
+from onetl.file import FileDFReader
+from onetl.file.format import CSV
+
+spark = SparkSession.builder \
+    .master("yarn") \
+    .appName("spark-with-yarn") \
+    .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
+    .config("spark.hive.metastore.uris", "thrift://tmpl-dn-01:хххх") \
+    .enableHiveSupport() \
+    .getOrCreate()
 
 ```
-wget https://dlcdn.apache.org/hive/hive-4.0.1/apache-hive-4.0.1-bin.tar.gz
+
+**Очень важно не забыть закрыть сессию после рабыты!**
+
+Команда `spark.stop()`
+
+Выход из среды `quit()`
+
+## 2. Подключимся к файловой системе HDFS
 ```
+hdfs = SparkHDFS(host="tmpl-nn", port=9000, spark=spark, cluster="test")
+```
+
+Проверим, что успешно:
+```
+In [4]: hdfs.check()
+Out[4]: SparkHDFS(cluster='test', host='tmpl-nn', ipc_port=9000)
+```
+
+## 3. Читаем файл
+пример:
+```
+reader = FileDFReader(connection=hdfs, format=CSV(delimiter=",", header=True), source_path="/input")
+
+df = reader.run(["your_file_name.csv"])
+```
+
+## 4. Базовый обзор таблицы
+Получить количество строк можно командой `df.count()`. Пример:
+```
+In [7]: df.count()
+Out[7]: 999507
+```
+
+Получить список колонок, описание типов и информацию о наличии пропусков - `df.printSchema()`. Пример:
+```
+In [8]: df.printSchema()
+root
+ |-- registration number: string (nullable = true)
+ |-- registration date: string (nullable = true)
+ |-- application number: string (nullable = true)
+ |-- application date: string (nullable = true)
+ |-- priority date: string (nullable = true)
+ |-- exhibition priority date: string (nullable = true)
+```
+
+Выбрать колонку и посмотреть первые несколько строк (default 20). 
+```
+dt = df.select("registration date")
+dt.show()
+```
+
+Пример:
+```
+In [9]: dt = df.select("registration date")
+   ...: dt.show()
++-----------------+
+|registration date|
++-----------------+
+|         19361027|
+|         19361027|
+|         19361027|
+|         19361027|
+```
+
+-----------------------------------
+
+## На примере разберем несколько видов трансформации данных:
 
 ## 7. Распаковываем архив
 ```
@@ -115,13 +155,9 @@ wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
 cd ../conf
 nano hive-site.xml
 ```
+----------------------------------
 
-**Содержимое hive-site.xml**
-
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-17-15.png)
-
-
-## 10. Добавим переменные окружения
+## Сохраним данные как таблицу
 ```
 nano ~/.profile
 ```
@@ -132,15 +168,16 @@ export HIVE_CONF_DIR=$HIVE_HOME/conf
 export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
 export PATH="$PATH:$HIVE_HOME/bin" 
 ```
+-----------------------------------
 
-## 11. Активируем окружение
+## Убедимся, что стандартный клиент Hive может прочитать данные
 ```
 source ~/.profile
 ```
 
-Можно проверить себя командой `hive --version`
+-----------------------------------
 
-## 12. Cоздаем папки
+## Бонус
 Для хранения данных нам понадобятся папки tmp и warehouse. Cоздадим их командами:
 ```
 hdfs dfs -mkdir -p /tmp
