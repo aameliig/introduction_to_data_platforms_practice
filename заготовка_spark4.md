@@ -136,37 +136,131 @@ In [9]: dt = df.select("registration date")
 -----------------------------------
 
 ## На примере разберем несколько видов трансформации данных:
+В нашей таблице записаны данные о регистрации торговых марок в строковом формате.
 
-## 7. Распаковываем архив
+## 1. Отделим год от registration date и запишем его в новую колонку reg_year
 ```
-tar -zxvf apache-hive-4.0.1-bin.tar.gz
-cd apache-hive-4.0.1-bin/
-```
-
-## 8. Скачиваем драйвер для postgresql
-```
-cd libs
-wget https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
+df = df.withColumn("reg_year", F.col("registration date").substr(0, 4))
 ```
 
-## 9. Конфигурирование
-Создадим свой конфигурационный файл
+After:
 ```
-cd ../conf
-nano hive-site.xml
+In [24]: dt = df.select("reg_year")
+
+In [25]: dt.show()
++--------+
+|reg_year|
++--------+
+|    1936|
+|    1936|
+|    1936|
+|    1936|
+|    1937|
 ```
+
+## 2. Заполним NaN в correspondence address
+```
+df = df.na.fill({"correspondence address": "unknown"})
+```
+
+Before:
+```
+In [9]: dt.show()
++----------------------+
+|correspondence address|
++----------------------+
+|                  NULL|
+|  "ООО ""Юридическа...|
+|  Бейкер и Макензи ...|
+|                  NULL|
+```
+
+After:
+```
+n [26]: dt = df.select("correspondence address")
+
+In [27]: dt.show()
++----------------------+
+|correspondence address|
++----------------------+
+|               unknown|
+|  "ООО ""Юридическа...|
+|  Бейкер и Макензи ...|
+|               unknown|
+|               unknown|
+```
+
+## 3. Создадим колонку sound_filled из sound: заменим false и Null -> "Нет"
+
+```
+df = df.withColumn(
+    'sound_filled',
+    F.when((F.col("sound") == 'false') | (F.col("sound").isNull()), "Нет")
+    .otherwise(F.col("sound"))
+)
+```
+Before:
+```
+In [17]: dt.show()
++--------------------+
+|               sound|
++--------------------+
+|               false|
+|                NULL|
+|               false|
+|               false|
+|               false|
+|               false|
+|               false|
+|                NULL|
+|               false|
+|               false|
+|               false|
+|"Все словесные об...|
+|               false|
+```
+
+After:
+```
+In [23]: dt.show()
++--------------------+
+|        sound_filled|
++--------------------+
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|                 Нет|
+|"Все словесные об...|
+|                 Нет|
+```
+
+
 ----------------------------------
 
 ## Сохраним данные как таблицу
 ```
-nano ~/.profile
+df.write.saveAsTable("your_table_name")
 ```
-Вставляем в конец:
+
+## Сохраним данные как партиционированную таблицу
+Посмотрим на текущее количество партиций:
 ```
-export HIVE_HOME="/home/hadoop/apache-hive-4.0.1-bin"
-export HIVE_CONF_DIR=$HIVE_HOME/conf
-export HIVE_AUX_JARS_PATH=$HIVE_HOME/lib/*
-export PATH="$PATH:$HIVE_HOME/bin" 
+In [28]: df.rdd.getNumPartitions()
+Out[28]: 5
+```
+Допустим, мы хотим изменить их количество и сохранить таблицу. Логично будет разделить данные, например, по году:
+```
+df.write.parquet("your_table_name")
+df = df.repartition(15, "reg_year")
+df.rdd.getNumPartitions()
+df.write.saveAsTable("your_table_name")
 ```
 -----------------------------------
 
@@ -178,188 +272,127 @@ source ~/.profile
 -----------------------------------
 
 ## Бонус
-Для хранения данных нам понадобятся папки tmp и warehouse. Cоздадим их командами:
-```
-hdfs dfs -mkdir -p /tmp
-hdfs dfs-mkdir -p /user/hive/warehouse
-```
-**Совет:** для начала убедитесь, что этих папок не существует. Это можно сделать в веб-интерфейсе, вкладка 
-`Utilities / Browse the file system`
+Разберем чуть более сложные операции аггрегирования на примере наших данных.
 
-В нашем случае папка tmp уже существовала, мы добавили только warehouse.
-
-Меняем права доступа:
+## 1. Поменяем формат колонки на числовой
+Это нам понадобится для дальнейших аггрегаций. 
 ```
-hdfs dfs -chmod g+w  /tmp
-hdfs dfs -chmod g+w  /user/hive/warehouse
+df = df.withColumn("int_reg_year",  df.reg_year.cast('integer'))
 ```
 
-Вид веб-интерфейса:
+Получили год регистрации торговой марки в целочисленном представлении
 
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0_20241026_141316.png)
-
-## 12. Инициализируем БД
-Перед запуском осталось инициализировать БД:
+## 2. Посчитаем количество right holder country code 
 ```
-cd ../
-./schematool -dbType postgres -initSchema
+table1 = df.groupBy("right holder country code")
+table1.show()
+table1.write.saveAsTable("count_country_20241124")
 ```
-
-## 13. Запускаем Hive
+Проверим вывод:
 ```
-nohup hive --hiveconf hive.server2.enable.doAs=false --hiveconf hive.security.authorization.enabled=false --service hiveserver2 1>> /tmp/hs2.log 2>> /tmp/hs2.log &
-```
-
-Подключиться в консоль Hive можно командой:
-```
-beeline -u jdbc:hive2://team-1-jn:5432
-```
-
-## 14. Проверка: DB test
-Чтобы убедиться, что все работает корректно создадим DATABASE test.
-
-```
-SHOW DATABASES;
-```
-
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-12-12.png)
+In [36]: table1.show()
++-------------------------+-----+
+|right holder country code|count|
++-------------------------+-----+
+|                       LT|  962|
+|      дорога на Металл...|    6|
+|                оф. 2612"|    1|
+|         ул. Чистопрудная|    1|
+|     347340, Ростовска...|    1|
+|     109125, Москва, у...|    1|
+|                       FI| 3517|
+|                       AZ|  537|
+|     127018, Москва, у...|    1|
 
 ```
-CREATE DATABASE test;
-DESCRIBE DATABASE test;
+## 3. Посчитаем самый ранний год регистрации для каждого right holder country code 
+```
+table2 = df.groupBy("right holder country code").min("int_reg_year")
+table2.show()
+table2.write.saveAsTable("min_year_country_20241124")
+```
+Проверим вывод:
+```
+In [42]: table2.show()
++-------------------------+-----------------+
+|right holder country code|min(int_reg_year)|
++-------------------------+-----------------+
+|                       LT|             1960|
+|      дорога на Металл...|             2002|
+|                оф. 2612"|             2012|
+|         ул. Чистопрудная|             2020|
+|     347340, Ростовска...|             1991|
+|     109125, Москва, у...|             2000|
+|                       FI|             1968|
+|                       AZ|             1961|
+
 ```
 
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/image_2024-10-27_16-12-43.png)
+## 4. Посчитаем самый поздний год регистрации для каждого right holder country code 
+```
+table3 = df.groupBy("right holder country code").max("int_reg_year")
+table3.show()
+table3.write.saveAsTable("max_year_country_20241124")
+```
+Проверим вывод:
+```
+In [45]: table3.show()
++-------------------------+-----------------+
+|right holder country code|max(int_reg_year)|
++-------------------------+-----------------+
+|                       LT|             2024|
+|     690000, г. Владив...|             1995|
+|     628011, г.Ханты-М...|             2017|
+|     125047, Москва, М...|             1995|
+|     141551, Московска...|             1995|
+|                       TC|             2024|
 
-БД появилась в веб-интерфейсе:
+```
 
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/photo_2024-10-28_08-19-20.jpg)
+## 5. Посчитаем самый средний год регистрации для каждого right holder country code 
+```
+table4 = df.groupBy("right holder country code").avg("int_reg_year")
+table4.show()
+table4.write.saveAsTable("avg_year_country_20241124")
+```
+Проверим вывод (это нормально, что некоторые числа не целые, ведь мы смотрим среднее значение):
+```
+In [48]: table4.show()
++-------------------------+------------------+
+|right holder country code| avg(int_reg_year)|
++-------------------------+------------------+
+|                       LT|1996.0873180873182|
+|     690000, г. Владив...|            1995.0|
+|     628011, г.Ханты-М...|            2017.0|
+|     125047, Москва, М...|            1995.0|
+|     141551, Московска...|            1995.0|
+|                       TC|2017.6170212765958|
 
 
-## 14.5 Посмотрим веб-интерфейс Hive
-Подключиться к нему можно по ссылке: http://176.109.91.3:10002
+```
 
-![image](https://github.com/aameliig/introduction_to_data_platforms_practice/blob/task3_hive_set_up_guide/pictures/photo_2024-10-28_08-19-08.jpg)
+## 6. Оставим только уникальные объекты в колонке right holder name
+```
+table5 = df.select('right holder name').distinct()
+table5.show()
+table5.write.saveAsTable("unique_rholder_name_20241124")
+```
 
+## Как сохранить данные в формате партиционированной таблицы мы показали ранее
+Можем еще раз повторить здесь общий template.
 
-## Настройка Hive завершена. Переходим к операциям с данными
+Количество текущих партиций:
+```
+In [28]: df.rdd.getNumPartitions()
+Out[28]: xx
+```
 
+Их изменение:
+```
+df.write.parquet("your_table_name")
+df = df.repartition(15, "yor col")
+df.rdd.getNumPartitions()
+df.write.saveAsTable("your_table_name", partitionBy="your col")
+```
 ------------------------------------
 
-
-
-### Шаги работы с HDFS и Hive
-
-1. **Создание директории в HDFS**
-   ```bash
-   hdfs dfs -mkdir /input
-   ```
-   - Создает директорию `/input` в файловой системе HDFS, которая будет использоваться для хранения данных.
-
-2. **Изменение прав доступа к директории**
-   ```bash
-   hdfs dfs -chmod g+w /input
-   ```
-   - Устанавливает права на запись для группы (`g+w`) в директории `/input`, позволяя другим пользователям в группе добавлять файлы.
-
-3. **Копирование файла в HDFS**
-   ```bash
-   hdfs dfs -put ./apache-hive-4.0.1-bin/examples/files/2000_cols_data.csv /input/
-   ```
-   - Копирует файл `2000_cols_data.csv` из локальной файловой системы в директорию `/input` в HDFS.
-
-4. **Проверка целостности файла**
-   ```bash
-   hdfs fsck /input/2000_cols_data.csv
-   ```
-   - Выполняет проверку целостности файла `2000_cols_data.csv` в HDFS, чтобы убедиться, что файл доступен и не поврежден.
-
-5. **Подключение к Hive через Beeline**
-   ```bash
-   beeline -u jdbc:hive2://team-1-jn:5432
-   ```
-   - Подключается к Hive через Beeline, используя JDBC URL, чтобы взаимодействовать с базой данных.
-
-6. **Просмотр доступных баз данных**
-   ```sql
-   SHOW DATABASES;
-   ```
-   - Отображает список всех баз данных в Hive, чтобы убедиться, что нужная база данных доступна.
-
-7. **Выбор базы данных**
-   ```sql
-   use test;
-   ```
-   - Выбирает базу данных `test` для дальнейших операций.
-
-8. **Создание таблицы**
-   ```sql
-   CREATE TABLE IF NOT EXISTS test.numbers (
-       num1 STRING,
-       num2 STRING,
-       num3 STRING,
-       num4 STRING
-   ) 
-   ROW FORMAT DELIMITED 
-   FIELDS TERMINATED BY ',';
-   ```
-   - Создает таблицу `numbers` в базе данных `test`, если она еще не существует. Таблица имеет четыре столбца, все из которых имеют тип `STRING`. Данные будут разделены запятыми.
-
-9. **Просмотр таблиц в базе данных**
-   ```sql
-   SHOW TABLES;
-   ```
-   - Отображает список всех таблиц в текущей базе данных, чтобы проверить, была ли успешно создана таблица `numbers`.
-
-10. **Описание структуры таблицы**
-    ```sql
-    DESCRIBE numbers;
-    ```
-    - Показывает структуру таблицы `numbers`, включая названия столбцов и их типы данных.
-
-11. **Загрузка данных в таблицу**
-    ```sql
-    LOAD DATA INPATH '/input/decimal64table1.csv' INTO TABLE test.numbers;
-    ```
-    - Загружает данные из файла `decimal64table1.csv`, который находится в HDFS, в таблицу `numbers`.
-
-12. **Запрос данных из таблицы**
-    ```sql
-    SELECT * FROM test.numbers LIMIT 10;
-    ```
-    - Выполняет запрос для получения первых 10 записей из таблицы `numbers`, позволяя проверить, что данные были успешно загружены.
-13. **Работа с партициями**
-    
-По порядку: 
-Создать новую партиционированную таблицу:
-
-  ```sql
-CREATE TABLE IF NOT EXISTS test.numbers_partitioned (
-    num2 STRING,
-    num3 STRING,
-    num4 STRING
-)
-PARTITIONED BY (num1 STRING)  -- Указать столбец для партиционирования
-ROW FORMAT DELIMITED 
-FIELDS TERMINATED BY ',';
-  ```
-Перенести данные из старой таблицы в новую таблицу:
-  ```sql
-
-INSERT INTO TABLE test.numbers_partitioned PARTITION (num1)
-SELECT num1, num2, num3, num4 FROM test.numbers;
-  ```
-Проверить наличие партиций:
-
-  ```sql
-SHOW PARTITIONS test.numbers_partitioned;
-  ```
-Удалить старую таблицу (по желанию):
-  ```sql
-
-DROP TABLE test.numbers;
- ```
-Переименовать новую таблицу (по желанию):
-  ```sql
-ALTER TABLE test.numbers_partitioned RENAME TO test.numbers;
- ```
