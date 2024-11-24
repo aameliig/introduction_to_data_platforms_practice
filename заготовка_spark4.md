@@ -328,7 +328,7 @@ df = df.withColumn("int_reg_year",  df.reg_year.cast('integer'))
 
 ## 2. Посчитаем количество right holder country code 
 ```
-table1 = df.groupBy("right holder country code")
+table1 = df.groupBy("right holder country code").count()
 table1.show()
 table1.write.saveAsTable("count_country_20241124")
 ```
