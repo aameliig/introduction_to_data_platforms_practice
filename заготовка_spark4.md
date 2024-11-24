@@ -291,7 +291,7 @@ SHOW TABLES;
 |          tab_name          |
 +----------------------------+
 | avg_year_country_20241124  |
-| count_country_20241124     |
+| country_cnt_20241124       |
 | max_year_country_20241124  |
 | min_year_country_20241124  |
 | regs_20241124              |
@@ -299,7 +299,7 @@ SHOW TABLES;
 
 ```
 
-Видим таблицы, которые мы создали.
+Видим таблицы, которые мы создадим в разделе **бонус**.
 
 Можем посмотреть на описание одной из них:
 ```
@@ -312,6 +312,32 @@ DESCRIBE count_country_20241124;
 | count                      | bigint     |          |
 +----------------------------+------------+----------+
 ```
+
+## 3. Убедимся, что клиент Hive может прочитать данные
+
+Чтобы клиент Hive мог прочитать таблицу, названия колонок не должны содержать пробелы. Мы используем подходящую таблицу, созданную в разделе бонус.
+
+```
+SELECT * FROM default.country_cnt_20241124  LIMIT 10;
+
++----------------------------------------------------+---------------------------+
+|   country_cnt_20241124.right_holder_country_code   | country_cnt_20241124.cnt  |
++----------------------------------------------------+---------------------------+
+| LT                                                 | 962                       |
+| DZ                                                 | 3                         |
+ | 1                         |vl/fips_servlet?DB=RUTM&DocNumber=409796
+|  дорога на Металлострой                            | 6                         |
+|  оф. 2612"                                         | 1                         |
+| 344002, Ростовская обл., г.Ростов-на-Дону, ул.Серафимовича, 37, кв.15 | 1                         |
+|  пом. 53"                                          | 1                         |
+|  стр. 36"                                          | 1                         |
+|  пом. 6-Н"                                         | 1                         |
+| 107061, Москва, Черкизовская Б. ул., 5             | 1                         |
++----------------------------------------------------+---------------------------+
+10 rows selected (3.075 seconds)
+
+```
+
 
 -----------------------------------
 
@@ -329,8 +355,6 @@ df = df.withColumn("int_reg_year",  df.reg_year.cast('integer'))
 ## 2. Посчитаем количество right holder country code 
 ```
 table1 = df.groupBy("right holder country code").count()
-table1.show()
-table1.write.saveAsTable("count_country_20241124")
 ```
 Проверим вывод:
 ```
@@ -349,9 +373,31 @@ In [36]: table1.show()
 |     127018, Москва, у...|    1|
 
 ```
+
+Чтобы клиент Hive мог прочитать таблицу, названия колонок не должны содержать пробелы. Переименуем их:
+
+```
+In [10]: table1 = table1.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('count', 'cnt')
+
+In [11]: table1.show()
++-------------------------+----+
+|right_holder_country_code| cnt|
++-------------------------+----+
+|                       LT| 962|
+|                       DZ|   3|
+|     http://www1.fips....|   1|
+|      дорога на Металл...|   6|
+|                оф. 2612"|   1|
+|     344002, Ростовска...|   1|
+
+
+table1.write.saveAsTable("country_cnt_20241124")
+```
+
 ## 3. Посчитаем самый ранний год регистрации для каждого right holder country code 
 ```
 table2 = df.groupBy("right holder country code").min("int_reg_year")
+table2 = table2.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('min(int_reg_year)', 'min_int_reg_year')
 table2.show()
 table2.write.saveAsTable("min_year_country_20241124")
 ```
@@ -359,7 +405,7 @@ table2.write.saveAsTable("min_year_country_20241124")
 ```
 In [42]: table2.show()
 +-------------------------+-----------------+
-|right holder country code|min(int_reg_year)|
+|right_holder_country_code| min_int_reg_year|
 +-------------------------+-----------------+
 |                       LT|             1960|
 |      дорога на Металл...|             2002|
@@ -375,6 +421,8 @@ In [42]: table2.show()
 ## 4. Посчитаем самый поздний год регистрации для каждого right holder country code 
 ```
 table3 = df.groupBy("right holder country code").max("int_reg_year")
+table3 = table3.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('max(int_reg_year)', 'max_int_reg_year')
+
 table3.show()
 table3.write.saveAsTable("max_year_country_20241124")
 ```
@@ -382,7 +430,7 @@ table3.write.saveAsTable("max_year_country_20241124")
 ```
 In [45]: table3.show()
 +-------------------------+-----------------+
-|right holder country code|max(int_reg_year)|
+|right_holder_country_code| max_int_reg_year|
 +-------------------------+-----------------+
 |                       LT|             2024|
 |     690000, г. Владив...|             1995|
@@ -396,6 +444,8 @@ In [45]: table3.show()
 ## 5. Посчитаем средний год регистрации для каждого right holder country code 
 ```
 table4 = df.groupBy("right holder country code").avg("int_reg_year")
+table4 = table4.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('avg(int_reg_year)', 'avg_int_reg_year')
+
 table4.show()
 table4.write.saveAsTable("avg_year_country_20241124")
 ```
@@ -403,7 +453,7 @@ table4.write.saveAsTable("avg_year_country_20241124")
 ```
 In [48]: table4.show()
 +-------------------------+------------------+
-|right holder country code| avg(int_reg_year)|
+|right_holder_country_code|  avg_int_reg_year|
 +-------------------------+------------------+
 |                       LT|1996.0873180873182|
 |     690000, г. Владив...|            1995.0|
