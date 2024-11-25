@@ -1,6 +1,6 @@
 # Пример работы со Spark под управлением YARN
 
-В этом пошаговом руководстве описано, как запускать и корректно завершать сессию Spark, а также инструкции по выполнению базовых операций с таблицей. (Предполагается, что дистрибутив Spark уже установлен, существуют работающий кластер Hadoop и Hive). 
+В этом пошаговом руководстве описано, как запускать и корректно завершать сессию Spark, а также инструкции по выполнению базовых операций с данными. (Предполагается, что дистрибутив Spark уже установлен, существуют работающий кластер Hadoop и Hive). 
 
 ## 0. Virtual environment
 Мы будем использовать интерактивную оболочку ipython.
@@ -44,7 +44,7 @@ spark = SparkSession.builder \
     .master("yarn") \
     .appName("spark-with-yarn") \
     .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-    .config("spark.hive.metastore.uris", "thrift://tmpl-dn-01:хххх") \
+    .config("spark.hive.metastore.uris", "thrift://server_name:хххх") \
     .enableHiveSupport() \
     .getOrCreate()
 
@@ -58,13 +58,13 @@ spark = SparkSession.builder \
 
 ## 2. Подключимся к файловой системе HDFS
 ```
-hdfs = SparkHDFS(host="tmpl-nn", port=9000, spark=spark, cluster="test")
+hdfs = SparkHDFS(host="server_name", port=port, spark=spark, cluster="test")
 ```
 
 Проверим, что успешно:
 ```
 In [4]: hdfs.check()
-Out[4]: SparkHDFS(cluster='test', host='tmpl-nn', ipc_port=9000)
+Out[4]: SparkHDFS(cluster='test', host='server_name', ipc_port=port)
 ```
 
 ## 3. Читаем файл
@@ -140,7 +140,7 @@ In [25]: dt.show()
 |    1937|
 ```
 
-## 2. Заполним NaN в correspondence address
+## 2. Заполним NaN в поле correspondence address
 ```
 df = df.na.fill({"correspondence address": "unknown"})
 ```
@@ -454,6 +454,7 @@ In [48]: table4.show()
 ## 6. Оставим только уникальные объекты в колонке right holder name
 ```
 table5 = df.select('right holder name').distinct()
+table5 = table5.withColumnRenamed('right holder country code', 'right_holder_country_code')
 table5.show()
 table5.write.saveAsTable("unique_rholder_name_20241124")
 ```
