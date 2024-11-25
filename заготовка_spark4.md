@@ -64,7 +64,7 @@ spark = SparkSession.builder \
     .master("yarn") \
     .appName("spark-with-yarn") \
     .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-    .config("spark.hive.metastore.uris", "thrift://tmpl-dn-01:хххх") \
+    .config("spark.hive.metastore.uris", "thrift://server_name:хххх") \
     .enableHiveSupport() \
     .getOrCreate()
 
@@ -78,13 +78,13 @@ spark = SparkSession.builder \
 
 ## 2. Подключимся к файловой системе HDFS
 ```
-hdfs = SparkHDFS(host="tmpl-nn", port=9000, spark=spark, cluster="test")
+hdfs = SparkHDFS(host="server_name", port=port, spark=spark, cluster="test")
 ```
 
 Проверим, что успешно:
 ```
 In [4]: hdfs.check()
-Out[4]: SparkHDFS(cluster='test', host='tmpl-nn', ipc_port=9000)
+Out[4]: SparkHDFS(cluster='test', host='server_name', ipc_port=port)
 ```
 
 ## 3. Читаем файл
