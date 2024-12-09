@@ -130,4 +130,94 @@ if __name__ == "__main__":
 ```
 python prefect_flow.py
 ```
+
+## Дополнительная задача 4. Установим AirFlow
+Установим совместимую версию AirFlow:
+```
+pip install "apache-airflow[celery]==2.10.3" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.12.txt"
+```
+Поставим pyspark и зависимости:
+```
+pip install pyspark
+pip install onetl
+pip install onetl[hdfs]
+```
+Запускаем airflow:
+```
+airflow standalone
+```
+Заходим в браузере на 8080 порт, пример localhost:8080
+и вводим пароль, который высветился в командной строке
+Проверим, что всё работает.
+Далее остановим AirFlow через Ctr+C и настроим наш DAG:
+```
+nano my_dag.py
+```
+
+Допишем в файл нашу логику: 
+```
+from __future__ import annotations
+
+import logging
+import pendulum
+from airflow.models import DAG
+from airflow.operators.python import PythonOperator
+
+import urllib.request
+from pyspark.sql import SparkSession
+import ssl
+from airflow import HDFS
+from oneit.file import FileUploader
+
+with DAG(
+    "example_sag_dag",
+    start_date=pendulum.datetime(2024, 12, 1, tz="UTC"),
+    catchup=False,
+    schedule=None,
+    tags=["example"],
+) as dag:
+    local_data_path = "/home/hadoop/input/data.csv"
+
+    def extract_data():
+        ssl._create_default_https_context = ssl._create_unverified_context
+        input_url = "https://rosoptevo.gov/opendata/7730176088-bd/data-20241101-structure-20180828.csv"
+        urllib.request.urlretrieve(input_url, local_data_path)
+
+    def load_data():
+        spark = SparkSession.builder \
+            .master("yarn") \
+            .appName("spark-with-yarn") \
+            .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
+            .config("spark.hive.metastore.uris", "thrift://tmpl-dm-01:9083") \
+            .enableHiveSupport() \
+            .getOrCreate()
+
+        hdfs = HDFS("host=tmpl-n", port=9070)
+        fu = FileUploader(connection=hdfs, target_path="/input")
+        fu.run(local_data_path)
+
+        df = spark.read.options(delimiter=",", header=True).csv("/input/data.csv")
+
+        spark.stop()
+
+    extract_task = PythonOperator(task_id="extract_task", python_callable=extract_data)
+
+    load_task = PythonOperator(task_id="load_task", python_callable=load_data)
+
+    extract_task >> load_task
+```
+
+Положим файл в примеры: 
+```
+cp my_dag.py airflow/lib/python3.12/site-packages/airflow/example_dags/
+```
+
+Снова запустим AirFlow:
+```
+airflow standalone
+```
+
+
+
   
+
