@@ -34,15 +34,11 @@ vim prefect_flow.py
 
 ## 2. Пишем файл с ETL процессом
 
-Добавляем переменные окружения для спарка
-
+Поставим pyspark и зависимости:
 ```
-import os, sys
-
-for root, dirs, files in os.walk(f"{os.environ['SPARK_HOME']}/python/lib"):
-    for file in files:
-        if "zip" in file:
-            sys.path.insert(0, os.path.join(root, file))
+pip install pyspark
+pip install onetl
+pip install onetl[hdfs]
 ```
 
 Добавляем импорты 
@@ -80,7 +76,7 @@ def create_session():
 ```
 @task
 def extract_data(spark):
-  hdfs = SparkHDFS(host="tmpl-nn", port=9000, spark=spark, cluster="test")
+  hdfs = SparkHDFS(host="server_name", port=xxxx, spark=spark, cluster="test")
   hdfs.check()
   reader = FileDFReader(connection=hdfs, format=CSV(delimiter=",", header=True), source_path="/input")
   df = reader.run(["data-20241101-structure-20180828.csv"])
@@ -188,11 +184,11 @@ with DAG(
             .master("yarn") \
             .appName("spark-with-yarn") \
             .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-            .config("spark.hive.metastore.uris", "thrift://tmpl-dm-01:9083") \
+            .config("spark.hive.metastore.uris", "thrift://server_name:9083") \
             .enableHiveSupport() \
             .getOrCreate()
 
-        hdfs = HDFS("host=tmpl-n", port=9070)
+        hdfs = HDFS("host=server_name", port=9070)
         fu = FileUploader(connection=hdfs, target_path="/input")
         fu.run(local_data_path)
 
