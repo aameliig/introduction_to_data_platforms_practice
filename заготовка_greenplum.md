@@ -3,7 +3,7 @@
 В шестом практическом домашнем задании наши задачи:
 
 + Подключиться к машине, где развернут GreenPlum
-+ Поработать с утилитой pysql:
++ Поработать с утилитой psql:
     - загрузить файл на машину
     - запустить gpfdist
     - создать External table
@@ -25,67 +25,45 @@
 
 В этом пошаговом руководстве описано, как загрузить файл на сервер, запустить gpfdist и создать External table
 
-## 0. Подключение
+## 1. Подключение
 Подключаемся к серверу стандартно, по протоколу ssh и вводим пароль
 
 ```
 ssh username@<IP-адрес>
 ```
 
-## 1. Работа с утилитой psqlpark
-Заходим в консоль pysql
-```
-import os, sys
+## 2. Работа с утилитой pyspark
+Psql – стандартный клиент для Postgres, который работает и с GreenPlum. Утилита psql уже предустановлена в системе.
 
-for root, dirs, files in os.walk(f"{os.environ['SPARK_HOME']}/python/lib"):
-    for file in files:
-        if "zip" in file:
-            sys.path.insert(0, os.path.join(root, file))
+Заходим в консоль psql
+```
+psql
 ```
 
-Далее создаем новую сессию Spark:
+Если bash не видит утилиту psql, то нужно выполнить команду:
+
+`source /usr/local/greenplum-db/greenplum_path.sh`
+
+Команда `\d` в psql выводит список всех таблиц, представлений и последовательностей в БД
+
+
+## 3. Подключаемся к конкретной базе данных
 ```
-from pyspark.sql import SparkSession
-from onetl.connection import SparkHDFS
-from onetl.file import FileDFReader
-from onetl.file.format import CSV
-
-spark = SparkSession.builder \
-    .master("yarn") \
-    .appName("spark-with-yarn") \
-    .config("spark.sql.warehouse.dir", "/user/hive/warehouse") \
-    .config("spark.hive.metastore.uris", "thrift://server_name:хххх") \
-    .enableHiveSupport() \
-    .getOrCreate()
-
+psql -d idp
 ```
-
-**Очень важно не забыть закрыть сессию после рабыты!**
-
-Команда `spark.stop()`
-
-Выход из среды `quit()`
-
-## 2. Подключимся к файловой системе HDFS
-```
-hdfs = SparkHDFS(host="server_name", port=port, spark=spark, cluster="test")
-```
-
-Проверим, что успешно:
-```
-In [4]: hdfs.check()
-Out[4]: SparkHDFS(cluster='test', host='server_name', ipc_port=port)
-```
-
-## 3. Читаем файл
 пример:
 ```
-reader = FileDFReader(connection=hdfs, format=CSV(delimiter=",", header=True), source_path="/input")
-
-df = reader.run(["your_file_name.csv"])
+psql -d your_db_name
 ```
 
-## 4. Базовый обзор таблицы
+## 4. Создаем External table
+
+end
+---------------------------------
+
+
+
+
 Получить количество строк можно командой `df.count()`. Пример:
 ```
 In [7]: df.count()
