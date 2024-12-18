@@ -49,11 +49,11 @@ psql
 
 ## 3. Подключаемся к конкретной базе данных
 ```
-psql -d idp
+psql -d your_db_name
 ```
 пример:
 ```
-psql -d your_db_name
+psql -d idp
 ```
 
 ## 4. Создаем External table
