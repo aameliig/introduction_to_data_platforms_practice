@@ -7,6 +7,7 @@
     - загрузить файл на машину
     - запустить gpfdist
     - создать External table
+    - создать Internal table
 
 Результаты работы:
 + Создана таблица в GreenPlum в базе данных idm, соответствующая нашему имени пользователя user*
@@ -23,7 +24,7 @@
 
 # Пример работы с GreenPlum
 
-В этом пошаговом руководстве описано, как загрузить файл на сервер, запустить gpfdist и создать External table
+В этом пошаговом руководстве описано, как загрузить файл на сервер, запустить gpfdist и создать External и Internal table
 
 ## 1. Подключение
 Подключаемся к серверу стандартно, по протоколу ssh и вводим пароль
@@ -56,405 +57,134 @@ psql -d your_db_name
 psql -d idp
 ```
 
-## 4. Создаем External table
-
-end
----------------------------------
-
-
-
-
-Получить количество строк можно командой `df.count()`. Пример:
-```
-In [7]: df.count()
-Out[7]: 999507
-```
-
-Получить список колонок, описание типов и информацию о наличии пропусков - `df.printSchema()`. Пример:
-```
-In [8]: df.printSchema()
-root
- |-- registration number: string (nullable = true)
- |-- registration date: string (nullable = true)
- |-- application number: string (nullable = true)
- |-- application date: string (nullable = true)
- |-- priority date: string (nullable = true)
- |-- exhibition priority date: string (nullable = true)
-...
-```
-
-Выбрать колонку и посмотреть первые несколько строк (default 20). 
-```
-dt = df.select("registration date")
-dt.show()
-```
-
-Пример:
-```
-In [9]: dt = df.select("registration date")
-   ...: dt.show()
-+-----------------+
-|registration date|
-+-----------------+
-|         19361027|
-|         19361027|
-|         19361027|
-|         19361027|
-...
-```
-
------------------------------------
-
-## На примере разберем несколько видов трансформаций данных:
-В нашей таблице записаны данные о регистрации торговых марок в строковом формате.
-
-## 1. Отделим год от registration date и запишем его в новую колонку reg_year
-```
-df = df.withColumn("reg_year", F.col("registration date").substr(0, 4))
-```
-
-After:
-```
-In [24]: dt = df.select("reg_year")
-
-In [25]: dt.show()
-+--------+
-|reg_year|
-+--------+
-|    1936|
-|    1936|
-|    1936|
-|    1936|
-|    1937|
-```
-
-## 2. Заполним NaN в correspondence address
-```
-df = df.na.fill({"correspondence address": "unknown"})
-```
-
-Before:
-```
-In [9]: dt.show()
-+----------------------+
-|correspondence address|
-+----------------------+
-|                  NULL|
-|  "ООО ""Юридическа...|
-|  Бейкер и Макензи ...|
-|                  NULL|
-```
-
-After:
-```
-n [26]: dt = df.select("correspondence address")
-
-In [27]: dt.show()
-+----------------------+
-|correspondence address|
-+----------------------+
-|               unknown|
-|  "ООО ""Юридическа...|
-|  Бейкер и Макензи ...|
-|               unknown|
-|               unknown|
-```
-
-## 3. Создадим колонку sound_filled из sound: заменим false и Null -> "Нет"
+## 4. Копируем данные на сервер
+По предположению, мы располагаем данными (`.csv` таблицей), которые находятся у нас на компьютере. Нам нужно перенести их на сервер.
+Открываем новое окно терминала и вводим команду:
 
 ```
-df = df.withColumn(
-    'sound_filled',
-    F.when((F.col("sound") == 'false') | (F.col("sound").isNull()), "Нет")
-    .otherwise(F.col("sound"))
+scp your_table.csv username@<IP-адрес>:~
+```
+
+Для примера мы взяли opensource датасет для машинного обучения классификации пингвинов `penguins.csv`.
+
+Он содержит в себе информацию о конкретных особях: длину клюва, глубину клюва, длину крыла, массу тела и пренадлежность
+к определенному виду (закодирована числами integer).
+
+Заметим, что колонки culmenlength и culmendepth содержат значения типа `float`.
+
+```
+culmenlength | culmendepth | flipperlength | bodymass | species
+--------------+-------------+---------------+----------+---------
+       39.100 |      18.700 |           181 |     3750 |       0
+       39.500 |      17.400 |           186 |     3800 |       0
+       40.300 |      18.000 |           195 |     3250 |       0
+```
+
+В нашем случае:
+```
+scp team_1_penguins.csv user@<IP-адрес>:~
+```
+
+## 5. Запускаем gpfdist
+В этом же окне терминала подключаемся к серверу и запускаем gpfdist:
+
+```
+gpfdist
+```
+
+## 6. Создаем External table
+Возвращаемся в терминал с psql. Используем синтаксис:
+
+```
+CREATE EXTERNAL TABLE team_1_penguins (
+    column1 type1,
+    column2 type2,
+    ...
 )
-```
-Before:
-```
-In [17]: dt.show()
-+--------------------+
-|               sound|
-+--------------------+
-|               false|
-|                NULL|
-|               false|
-|               false|
-|               false|
-|               false|
-|               false|
-|                NULL|
-|               false|
-|               false|
-|               false|
-|"Все словесные об...|
-|               false|
+LOCATION('gpfdist://localhost:8080/your_table.csv')
+FORMAT 'CSV' (DELIMITER ',' HEADER);
 ```
 
-After:
+В нашем случае:
 ```
-In [23]: dt.show()
-+--------------------+
-|        sound_filled|
-+--------------------+
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|                 Нет|
-|"Все словесные об...|
-|                 Нет|
+idp=> CREATE EXTERNAL TABLE team_1_penguins (
+    CulmenLength numeric(10, 3),
+    CulmenDepth numeric(10, 3),
+    FlipperLength integer,
+    BodyMass integer,
+    Species integer
+)
+LOCATION('gpfdist://localhost:8080/team_1_penguins.csv')
+FORMAT 'CSV' (DELIMITER ',' HEADER);
+NOTICE:  HEADER means that each one of the data files has a header row
+CREATE EXTERNAL TABLE
 ```
 
+## 6. Проверка
+Команды `select count(*) from your_table;` и `select * from your_table;` должны работать корректно:
 
-----------------------------------
-
-## Сохраним данные как таблицу
 ```
-df.write.saveAsTable("your_table_name")
+idp=> select count(*) from team_1_penguins;
+NOTICE:  HEADER means that each one of the data files has a header row
+ count
+-------
+   344
+(1 row)
 ```
-
-## Сохраним данные как партиционированную таблицу
-Посмотрим на текущее количество партиций:
 ```
-In [28]: df.rdd.getNumPartitions()
-Out[28]: 5
-```
-Допустим, мы хотим изменить их количество и сохранить партиционированную таблицу. Логично будет разделить данные, например, по году:
-```
-df.write.parquet("your_table_name")
-df = df.repartition(15, "reg_year")
-df.rdd.getNumPartitions()
-df.write.saveAsTable("your_table_name")
-```
------------------------------------
-
-## Убедимся, что стандартный клиент Hive может прочитать данные
-
-## 1. Подключимся в консоль Hive 
-```
-beeline -u jdbc:hive2://xxx-xx-xx:port
-```
-
-## 2. Проверяем наличие таблиц
-```
-SHOW DATABASES;
-
-+----------------+
-| database_name  |
-+----------------+
-| default        |
-+----------------+
-
-use default;
-
-SHOW TABLES;
-
-+----------------------------+
-|          tab_name          |
-+----------------------------+
-| avg_year_country_20241124  |
-| country_cnt_20241124       |
-| max_year_country_20241124  |
-| min_year_country_20241124  |
-| regs_20241124              |
-+----------------------------+
+idp=> select * from team_1_penguins;
+NOTICE:  HEADER means that each one of the data files has a header row
+ culmenlength | culmendepth | flipperlength | bodymass | species
+--------------+-------------+---------------+----------+---------
+       39.100 |      18.700 |           181 |     3750 |       0
+       39.500 |      17.400 |           186 |     3800 |       0
+       40.300 |      18.000 |           195 |     3250 |       0
+              |             |               |          |       0
+       36.700 |      19.300 |           193 |     3450 |       0
+       39.300 |      20.600 |           190 |     3650 |       0
+       38.900 |      17.800 |           181 |     3625 |       0
+       39.200 |      19.600 |           195 |     4675 |       0
+       34.100 |      18.100 |           193 |     3475 |       0
 
 ```
 
-Видим таблицы, которые мы создадим в разделе **бонус**.
+## 7. Создаем Internal table
+`create table your_table_internal as select * from your_table;`
 
-Можем посмотреть на описание одной из них:
+У нас:
 ```
-DESCRIBE count_country_20241124;
-
-+----------------------------+------------+----------+
-|          col_name          | data_type  | comment  |
-+----------------------------+------------+----------+
-| right holder country code  | string     |          |
-| count                      | bigint     |          |
-+----------------------------+------------+----------+
+idp=> create table team_1_penguins_internal as select * from team_1_penguins;
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+NOTICE:  HEADER means that each one of the data files has a header row
+SELECT 344
 ```
 
-## 3. Убедимся, что клиент Hive может прочитать данные
+## 7. Проверка
+Проверим, что таблица появилась в бд: 
 
-Чтобы клиент Hive мог прочитать таблицу, названия колонок не должны содержать пробелы. Мы используем подходящую таблицу, созданную в разделе бонус.
-
+(приведен фрагмент вывода)
 ```
-SELECT * FROM default.country_cnt_20241124  LIMIT 10;
 
-+----------------------------------------------------+---------------------------+
-|   country_cnt_20241124.right_holder_country_code   | country_cnt_20241124.cnt  |
-+----------------------------------------------------+---------------------------+
-| LT                                                 | 962                       |
-| DZ                                                 | 3                         |
- | 1                         |vl/fips_servlet?DB=RUTM&DocNumber=409796
-|  дорога на Металлострой                            | 6                         |
-|  оф. 2612"                                         | 1                         |
-| 344002, Ростовская обл., г.Ростов-на-Дону, ул.Серафимовича, 37, кв.15 | 1                         |
-|  пом. 53"                                          | 1                         |
-|  стр. 36"                                          | 1                         |
-|  пом. 6-Н"                                         | 1                         |
-| 107061, Москва, Черкизовская Б. ул., 5             | 1                         |
-+----------------------------------------------------+---------------------------+
-10 rows selected (3.075 seconds)
+                            List of relations
+ Schema |           Name            |     Type      |  Owner   | Storage
+--------+---------------------------+---------------+----------+---------
+ public | team_1_penguins           | foreign table | user     |
+ public | team_1_penguins_internal  | table         | user     | heap
+ public | хххххххххххххххх          | foreign table | user     |
+ .........
 
 ```
 
-
------------------------------------
-
-## Бонус
-Разберем чуть более сложные операции аггрегирования на примере наших данных.
-
-## 1. Поменяем формат колонки на числовой
-Это нам понадобится для дальнейших аггрегаций. 
+И проверим работоспособность команды `select`:
 ```
-df = df.withColumn("int_reg_year",  df.reg_year.cast('integer'))
-```
-
-Получили год регистрации торговой марки в целочисленном представлении
-
-## 2. Посчитаем количество right holder country code 
-```
-table1 = df.groupBy("right holder country code").count()
-```
-Проверим вывод:
-```
-In [36]: table1.show()
-+-------------------------+-----+
-|right holder country code|count|
-+-------------------------+-----+
-|                       LT|  962|
-|      дорога на Металл...|    6|
-|                оф. 2612"|    1|
-|         ул. Чистопрудная|    1|
-|     347340, Ростовска...|    1|
-|     109125, Москва, у...|    1|
-|                       FI| 3517|
-|                       AZ|  537|
-|     127018, Москва, у...|    1|
+idp=> select * from team_1_penguins_internal;
+ culmenlength | culmendepth | flipperlength | bodymass | species
+--------------+-------------+---------------+----------+---------
+       39.500 |      17.400 |           186 |     3800 |       0
+       39.200 |      19.600 |           195 |     4675 |       0
+       37.800 |      17.300 |           180 |     3700 |       0
 
 ```
 
-Чтобы клиент Hive мог прочитать таблицу, названия колонок не должны содержать пробелы. Переименуем их:
-
-```
-In [10]: table1 = table1.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('count', 'cnt')
-
-In [11]: table1.show()
-+-------------------------+----+
-|right_holder_country_code| cnt|
-+-------------------------+----+
-|                       LT| 962|
-|                       DZ|   3|
-|     http://www1.fips....|   1|
-|      дорога на Металл...|   6|
-|                оф. 2612"|   1|
-|     344002, Ростовска...|   1|
-
-
-table1.write.saveAsTable("country_cnt_20241124")
-```
-
-## 3. Посчитаем самый ранний год регистрации для каждого right holder country code 
-```
-table2 = df.groupBy("right holder country code").min("int_reg_year")
-table2 = table2.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('min(int_reg_year)', 'min_int_reg_year')
-table2.show()
-table2.write.saveAsTable("min_year_country_20241124")
-```
-Проверим вывод:
-```
-In [42]: table2.show()
-+-------------------------+-----------------+
-|right_holder_country_code| min_int_reg_year|
-+-------------------------+-----------------+
-|                       LT|             1960|
-|      дорога на Металл...|             2002|
-|                оф. 2612"|             2012|
-|         ул. Чистопрудная|             2020|
-|     347340, Ростовска...|             1991|
-|     109125, Москва, у...|             2000|
-|                       FI|             1968|
-|                       AZ|             1961|
-
-```
-
-## 4. Посчитаем самый поздний год регистрации для каждого right holder country code 
-```
-table3 = df.groupBy("right holder country code").max("int_reg_year")
-table3 = table3.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('max(int_reg_year)', 'max_int_reg_year')
-
-table3.show()
-table3.write.saveAsTable("max_year_country_20241124")
-```
-Проверим вывод:
-```
-In [45]: table3.show()
-+-------------------------+-----------------+
-|right_holder_country_code| max_int_reg_year|
-+-------------------------+-----------------+
-|                       LT|             2024|
-|     690000, г. Владив...|             1995|
-|     628011, г.Ханты-М...|             2017|
-|     125047, Москва, М...|             1995|
-|     141551, Московска...|             1995|
-|                       TC|             2024|
-
-```
-
-## 5. Посчитаем средний год регистрации для каждого right holder country code 
-```
-table4 = df.groupBy("right holder country code").avg("int_reg_year")
-table4 = table4.withColumnRenamed('right holder country code', 'right_holder_country_code').withColumnRenamed('avg(int_reg_year)', 'avg_int_reg_year')
-
-table4.show()
-table4.write.saveAsTable("avg_year_country_20241124")
-```
-Проверим вывод (это нормально, что некоторые числа не целые, ведь мы смотрим среднее значение):
-```
-In [48]: table4.show()
-+-------------------------+------------------+
-|right_holder_country_code|  avg_int_reg_year|
-+-------------------------+------------------+
-|                       LT|1996.0873180873182|
-|     690000, г. Владив...|            1995.0|
-|     628011, г.Ханты-М...|            2017.0|
-|     125047, Москва, М...|            1995.0|
-|     141551, Московска...|            1995.0|
-|                       TC|2017.6170212765958|
-
-
-```
-
-## 6. Оставим только уникальные объекты в колонке right holder name
-```
-table5 = df.select('right holder name').distinct()
-table5.show()
-table5.write.saveAsTable("unique_rholder_name_20241124")
-```
-
-## Как сохранить данные в формате партиционированной таблицы мы показали ранее
-Можем еще раз повторить здесь общий template.
-
-Количество текущих партиций:
-```
-In [28]: df.rdd.getNumPartitions()
-Out[28]: xx
-```
-
-Их изменение:
-```
-df.write.parquet("your_table_name")
-df = df.repartition(num_part, "yor col")
-df.rdd.getNumPartitions()
-df.write.saveAsTable("your_table_name", partitionBy="your col")
-```
-------------------------------------
+---------------------------------
 
