@@ -135,7 +135,7 @@ NOTICE:  HEADER means that each one of the data files has a header row
 SELECT 344
 ```
 
-## 7. Проверка
+## 8. Проверка
 Проверим, что таблица появилась в бд: 
 
 (приведен фрагмент вывода)
